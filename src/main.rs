@@ -49,6 +49,8 @@ fn perform_tick(ticker: &mut DemoTicker<GameStateAnalyser>) {
 
     let max_states_in_memory = 8 * 1024;
 
+    writeln!(file, "[").unwrap();
+
     while ticker_result.is_ok_and(|b| b) { 
 
         if ticknum > 0 && (ticknum & (ticknum - 1) == 0 || ticknum % 1024 == 0) {
@@ -64,15 +66,13 @@ fn perform_tick(ticker: &mut DemoTicker<GameStateAnalyser>) {
         json_object.remove("kills");
         state_history.push(json_value);
 
-        writeln!(file, "[").unwrap();
-
         if state_history.len() > max_states_in_memory {
             let mut states_remaining = state_history.len();
             for json_object in &state_history {
                 if states_remaining > 0 && (states_remaining & (states_remaining - 1) == 0 || states_remaining % 1024 == 0) {
                     println!("Flushing to disk ({} states remaining)", states_remaining);
                 }
-                writeln!(file, "{}", serde_json::to_string(&json_object).unwrap()).unwrap();
+                write!(file, "{}", serde_json::to_string(&json_object).unwrap()).unwrap();
                 writeln!(file, ",").unwrap();
                 states_remaining -= 1;
             }
@@ -91,11 +91,13 @@ fn perform_tick(ticker: &mut DemoTicker<GameStateAnalyser>) {
             if states_remaining > 0 && (states_remaining & (states_remaining - 1) == 0 || states_remaining % 1024 == 0) {
                 println!("Flushing to disk ({} states remaining)", states_remaining);
             }
-            writeln!(file, "{}", serde_json::to_string(&json_object).unwrap()).unwrap();
+            write!(file, "{}", serde_json::to_string(&json_object).unwrap()).unwrap();
             writeln!(file, ",").unwrap();
             states_remaining -= 1;
         }
     }
+
+    writeln!(file, "]").unwrap();
 
     let _ = file.flush();
 
