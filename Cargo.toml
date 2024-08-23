@@ -1,0 +1,11 @@
+[package]
+name = "analysis-template"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.86"
+serde_json = "1.0.125"
+tf-demo-parser = { git = "https://github.com/demostf/parser.git", version = "0.5.1" }
