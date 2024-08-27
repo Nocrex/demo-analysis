@@ -11,6 +11,7 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
     let mut ticker_result: Result<bool, ParseError> = Ok(true);
     let mut last_update = std::time::Instant::now();
     let mut prior_tick: u32 = 1;
+    let start = std::time::Instant::now();
 
     println!("Starting analysis...");
 
@@ -46,7 +47,7 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
         event.finish(); // Fire the end event.
     }
 
-    println!("Done! (Processed {} ticks)", header.ticks);
+    println!("Done! (Processed {} ticks in {} seconds)", header.ticks, start.elapsed().as_secs());
 }
 
 fn get_gamestate_json(state: &GameState) -> Value {
