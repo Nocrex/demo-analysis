@@ -53,7 +53,7 @@ impl<'a> DemoAnalysisFileWriter<'a> {
     }
 
     pub fn new (header: &'a Header) -> DemoAnalysisFileWriter<'a> {
-        DemoAnalysisFileWriter {
+        let mut out = DemoAnalysisFileWriter {
             state_history: Vec::new(),
             file: match fs::File::create("./test/test.json") {
                 Ok(file) => file,
@@ -66,7 +66,9 @@ impl<'a> DemoAnalysisFileWriter<'a> {
                 }
             },
             header,
-        }
+        };
+        writeln!(out.file, "[").unwrap();
+        return out;
     }
 }
 

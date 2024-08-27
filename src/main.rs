@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::ticker::perform_tick;
 use algorithms::write_to_file::DemoAnalysisFileWriter;
 
-use tf_demo_parser::demo::{header::Header, parser::gamestateanalyser::{GameState, GameStateAnalyser}};
+use tf_demo_parser::demo::parser::gamestateanalyser::GameStateAnalyser;
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
 
 fn main() -> Result<(), Error> {
@@ -28,11 +28,11 @@ fn main() -> Result<(), Error> {
     match ticker {
         Ok((header, mut ticker)) => {
 
-            let mut events: Vec<Box<dyn DemoTickEvent>> = Vec::new();
+            let mut events: Vec<Box<dyn DemoTickEvent>> = Vec::with_capacity(1);
 
             events.push(Box::new(DemoAnalysisFileWriter::new(&header)));
 
-            perform_tick(ticker.borrow_mut(), events);
+            perform_tick(&header, ticker.borrow_mut(), events);
         }
         Err(_) => todo!(),
     }
