@@ -1,5 +1,6 @@
 pub mod ticker;
 mod algorithms {
+    pub mod viewangles_to_csv;
     pub mod write_to_file;
 }
 
@@ -8,7 +9,7 @@ use anyhow::Error;
 use serde_json::Value;
 
 use crate::ticker::perform_tick;
-use algorithms::write_to_file::DemoAnalysisFileWriter;
+use algorithms::{viewangles_to_csv::ViewAnglesToCSV, write_to_file::DemoAnalysisFileWriter};
 
 use tf_demo_parser::demo::parser::gamestateanalyser::GameStateAnalyser;
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
@@ -31,6 +32,7 @@ fn main() -> Result<(), Error> {
             let mut events: Vec<Box<dyn DemoTickEvent>> = Vec::with_capacity(1);
 
             events.push(Box::new(DemoAnalysisFileWriter::new(&header)));
+            events.push(Box::new(ViewAnglesToCSV::new()));
 
             perform_tick(&header, ticker.borrow_mut(), events);
         }
