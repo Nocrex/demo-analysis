@@ -34,7 +34,7 @@ impl<'a> DemoTickEvent for DemoAnalysisFileWriter<'a> {
             self.state_history.clear();
         }
 
-        writeln!(self.file, "]").unwrap();
+        writeln!(self.file, "\n]").unwrap();
         let _ = self.file.flush();
 
         Ok(None)
@@ -45,6 +45,7 @@ impl<'a> DemoTickEvent for DemoAnalysisFileWriter<'a> {
 pub struct DemoAnalysisFileWriter<'a> {
     state_history: Vec<Value>,
     file: fs::File,
+    first_write: bool,
     header: &'a Header
 }
 
@@ -56,11 +57,18 @@ impl<'a> DemoAnalysisFileWriter<'a> {
     const MAX_STATES_IN_MEMORY: usize = 1024;
 
     fn write_states_to_file(&mut self) {
+
+        if self.first_write {
+            self.first_write = false;
+        } else {
+            writeln!(self.file, ",").unwrap();
+        }
+
         let out = self.state_history.iter()
                     .map(|j| serde_json::to_string(&j).unwrap())
-                    .collect::<Vec<String>>().join(",\n") + ",\n";
+                    .collect::<Vec<String>>().join(",\n"); 
     
-        writeln!(self.file, "{}", out).unwrap();
+        write!(self.file, "{}", out).unwrap();
     }
 
     pub fn new (header: &'a Header) -> DemoAnalysisFileWriter<'a> {
@@ -77,6 +85,7 @@ impl<'a> DemoAnalysisFileWriter<'a> {
                 }
             },
             header,
+            first_write: true
         };
         writeln!(out.file, "[").unwrap();
         return out;
