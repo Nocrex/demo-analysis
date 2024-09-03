@@ -29,7 +29,8 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
         }
 
         if last_update.elapsed().as_secs() >= 1 {
-            println!("Processing tick {} ({} remaining)", state.tick, header.ticks - u32::from(state.tick));
+            let tps: u32 = u32::from(state.tick) / start.elapsed().as_secs() as u32;
+            println!("Processing tick {} ({} remaining, {} tps)", state.tick, header.ticks - u32::from(state.tick), tps);
             last_update = std::time::Instant::now();
         }
 
@@ -48,6 +49,8 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
     for event in events.iter_mut() {
         event.finish(); // Fire the end event.
     }
+
+    print_metadata(header);
 
     println!("Done! (Processed {} ticks in {} seconds)", header.ticks, start.elapsed().as_secs());
 }
@@ -76,7 +79,10 @@ fn modify_json(state_json: &mut Value) -> Value {
 
     json_object.entry("players".to_string()).and_modify(|v| {
         let players = v.as_array_mut().unwrap();
-        *players = players.iter().filter(|p| p["in_pvs"].as_bool().unwrap()).cloned().collect();
+        *players = players.iter().filter(|p| {
+            p["in_pvs"].as_bool().unwrap() &&
+            p["state"].as_str().unwrap() == "Alive"
+        } ).cloned().collect();
     });
 
     return serde_json::to_value(json_object).unwrap();

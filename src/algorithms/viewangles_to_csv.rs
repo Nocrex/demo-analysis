@@ -20,7 +20,7 @@ impl ViewAnglesToCSV {
         writer
     }
 
-    fn calculate_delta(&self, curr_viewangle: f64, curr_pitchangle: f64, prev_viewangle: f64, prev_pitchangle: f64) -> (f64, f64) {
+    fn calculate_delta(&self, curr_viewangle: f64, curr_pitchangle: f64, prev_viewangle: f64, prev_pitchangle: f64, tick_delta: u64) -> (f64, f64) {
         let va_delta = {
             let diff = (curr_viewangle - prev_viewangle).rem_euclid(360.0);
             if diff > 180.0 {
@@ -28,10 +28,11 @@ impl ViewAnglesToCSV {
             } else {
                 diff
             }
-        };
-        let pa_delta = curr_pitchangle - prev_pitchangle;
+        } / tick_delta as f64;
+        let pa_delta = (curr_pitchangle - prev_pitchangle) / tick_delta as f64;
         (va_delta, pa_delta)
     }
+
 }
 
 impl DemoTickEvent for ViewAnglesToCSV {
@@ -50,6 +51,16 @@ impl DemoTickEvent for ViewAnglesToCSV {
             let viewangle = e["view_angle"].as_f64().unwrap();
             let pitchangle = e["pitch_angle"].as_f64().unwrap();
 
+            let tick_delta = {
+                if ticknum == 0 {
+                    0
+                } else {
+                    ticknum - self.previous.get("tick")
+                        .and_then(|tick| tick.as_u64())
+                        .unwrap_or(0)
+                }
+            };
+
             let (va_delta, pa_delta) = self.previous
                 .get("players")
                 .and_then(|players| players.as_array())
@@ -59,6 +70,7 @@ impl DemoTickEvent for ViewAnglesToCSV {
                     pitchangle,
                     prev_player["view_angle"].as_f64().unwrap(),
                     prev_player["pitch_angle"].as_f64().unwrap(),
+                    tick_delta
                 ))
                 .unwrap_or((f64::NAN, f64::NAN));
 
