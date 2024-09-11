@@ -4,7 +4,7 @@ use tf_demo_parser::demo::header::Header;
 use tf_demo_parser::demo::parser::{gamestateanalyser::{GameState, GameStateAnalyser}, DemoTicker};
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
 
-use crate::DemoTickEvent;
+use crate::{dev_print, DemoTickEvent};
 
 pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnalyser>, mut events: Vec<Box<dyn DemoTickEvent + 'a>>) {
   
@@ -13,7 +13,7 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
     let mut prior_tick: u32 = 1;
     let start = std::time::Instant::now();
 
-    println!("Starting analysis...");
+    dev_print!("Starting analysis...");
 
     print_metadata(header);
 
@@ -30,7 +30,7 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
 
         if last_update.elapsed().as_secs() >= 1 {
             let tps: u32 = u32::from(state.tick) / start.elapsed().as_secs() as u32;
-            println!("Processing tick {} ({} remaining, {} tps)", state.tick, header.ticks - u32::from(state.tick), tps);
+            dev_print!("Processing tick {} ({} remaining, {} tps)", state.tick, header.ticks - u32::from(state.tick), tps);
             last_update = std::time::Instant::now();
         }
 
@@ -47,23 +47,23 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
     }
 
     for event in events.iter_mut() {
-        event.finish(); // Fire the end event.
+        let _ = event.finish(); // Fire the end event.
     }
 
     print_metadata(header);
 
-    println!("Done! (Processed {} ticks in {} seconds)", header.ticks, start.elapsed().as_secs());
+    dev_print!("Done! (Processed {} ticks in {} seconds)", header.ticks, start.elapsed().as_secs());
 }
 
 fn print_metadata(header: &Header) {
-    println!("Map: {}", header.map);
+    dev_print!("Map: {}", header.map);
     let hours = (header.duration / 3600.0).floor();
     let minutes = ((header.duration % 3600.0) / 60.0).floor();
     let seconds = (header.duration % 60.0).floor();
     let milliseconds = ((header.duration % 1.0) * 100.0).floor();
-    println!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, header.ticks);
-    println!("User: {}", header.nick);
-    println!("Server: {}", header.server);
+    dev_print!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, header.ticks);
+    dev_print!("User: {}", header.nick);
+    dev_print!("Server: {}", header.server);
 }
 
 fn get_gamestate_json(state: &GameState) -> Value {

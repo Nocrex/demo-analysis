@@ -42,6 +42,7 @@ impl<'a> DemoTickEvent for DemoAnalysisFileWriter<'a> {
 }
 
 // Specify algorithm specific variables here.
+#[allow(dead_code)]
 pub struct DemoAnalysisFileWriter<'a> {
     state_history: Vec<Value>,
     file: fs::File,

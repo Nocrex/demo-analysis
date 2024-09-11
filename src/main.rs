@@ -14,13 +14,26 @@ use algorithms::{viewangles_to_csv::ViewAnglesToCSV, write_to_file::DemoAnalysis
 use tf_demo_parser::demo::parser::gamestateanalyser::GameStateAnalyser;
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
 
+pub static SILENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 fn main() -> Result<(), Error> {
-       let args: Vec<_> = env::args().collect();
-    if args.len() < 2 {
-        println!("1 argument required");
-        return Ok(());
+    let mut silent = false;
+    let mut path = String::new();
+    let mut args = env::args().skip(1);
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-i" => {
+                path = args.next().expect("Expected input file path after -i");
+            },
+            "-q" => silent = true,
+            _ => panic!("Unknown argument: {}", arg),
+        }
     }
-    let path = args[1].clone();
+    if path.is_empty() {
+        panic!("No input file path provided");
+    }
+    
+    SILENT.store(silent, std::sync::atomic::Ordering::SeqCst);
     let file = fs::read(path)?;
     let demo: Demo = Demo::new(&file);
     let parser = DemoParser::new_with_analyser(demo.get_stream(), GameStateAnalyser::new());
@@ -50,5 +63,14 @@ pub trait DemoTickEvent {
 
     fn finish<'a>(&mut self) -> Result<Option<Value>, Error> {
         Ok(None)
+    }
+}
+
+#[macro_export]
+macro_rules! dev_print {
+    ($($arg:tt)*) => {
+        if !crate::SILENT.load(std::sync::atomic::Ordering::SeqCst) {
+            println!($($arg)*);
+        }
     }
 }
