@@ -12,6 +12,7 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
     let mut last_update = std::time::Instant::now();
     let mut prior_tick: u32 = 1;
     let start = std::time::Instant::now();
+    let mut tps_start_window = start;
 
     dev_print!("Starting analysis...");
 
@@ -28,10 +29,11 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
             continue;
         }
 
-        if last_update.elapsed().as_secs() >= 1 {
-            let tps: u32 = u32::from(state.tick) / start.elapsed().as_secs() as u32;
+        if !crate::SILENT.load(std::sync::atomic::Ordering::Relaxed) && last_update.elapsed().as_secs() >= 1 {
+            let tps: u32 = u32::from(state.tick - (tps_start_window.elapsed().as_secs() as u32)) / tps_start_window.elapsed().as_secs() as u32;
             dev_print!("Processing tick {} ({} remaining, {} tps)", state.tick, header.ticks - u32::from(state.tick), tps);
             last_update = std::time::Instant::now();
+            tps_start_window = std::cmp::max(start, start - std::time::Duration::from_secs(30));
         }
 
         let mut json = get_gamestate_json(state);
@@ -52,7 +54,10 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
 
     print_metadata(header);
 
-    dev_print!("Done! (Processed {} ticks in {} seconds)", header.ticks, start.elapsed().as_secs());
+    let total_ticks = header.ticks;
+    let total_time = start.elapsed().as_secs_f64();
+    let total_tps = (total_ticks as f64) / total_time;
+    dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
 }
 
 fn print_metadata(header: &Header) {
