@@ -28,37 +28,80 @@ fn main() -> Result<(), Error> {
 
     let mut silent = false;
     let mut path = String::new();
-    let mut args = env::args().skip(1);
+    let args: Vec<String> = env::args().skip(1).collect();
 
-    // Algorithms that should run by default go here.
-    // Any dev stuff and anything that modifies files should NOT go here.
-    let mut algorithm_strings: Vec<String> = vec![
-        "viewangles_180degrees".to_string()
-    ];
+    // List of all algorithms that can be executed.
+    // Each algorithm can be individually invoked with -a <name>
+    // If the associated bool is initialised to true, then the algorithm will run if no argument is passed to -a.
+    // Any dev stuff and anything that modifies files should NOT run by default.
+    let default_algorithm_strings: std::collections::HashMap<String, bool> = std::collections::HashMap::from([
+        ("viewangles_180degrees".to_string(), true),
+        ("viewangles_to_csv".to_string(), false),
+        ("write_to_file".to_string(), false),
+    ]);
+    let mut algorithm_strings = default_algorithm_strings.clone();
 
-    while let Some(arg) = args.next() {
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args.clone()[i];
         match arg.as_str() {
             "-i" => {
-                path = args.next().expect("Expected input file path after -i");
+                if i + 1 >= args.len() {
+                    panic!("No path specified after -i");
+                }
+                path = args[i + 1].clone();
+                i += 1;
+                if path.starts_with('-') {
+                    panic!("No path specified after -i");
+                }
             },
             "-q" => silent = true,
             "-a" => {
                 algorithm_strings.clear();
-                while let Some(arg) = args.next() {
-                    if arg.starts_with('-') {
+                let mut reached_a = false;
+                for algorithm in args.clone() {
+                    if !reached_a {
+                        if algorithm.starts_with("-a") {
+                            reached_a = true;
+                        }
+                        continue;
+                    } else if algorithm.starts_with("-") {
                         break;
-                    } 
-                    algorithm_strings.push(arg.to_string());
+                    } else if !default_algorithm_strings.contains_key(&algorithm) {
+                        panic!("Invalid algorithm specified: {}", algorithm);
+                    }
+                    algorithm_strings.insert(algorithm, true);
+                    i += 1;
                 }
-                if algorithm_strings.len() == 0 {
+                if algorithm_strings.values().all(|v| !*v) {
                     panic!("No algorithms specified");
                 }
             },
             "-c" => {
                 COUNT.store(true, std::sync::atomic::Ordering::SeqCst);
             },
+            "-h" => {
+                println!("-i <path> (required) - specify the demo file to analyze");
+                println!("-q - silence all output except for the final JSON string");
+                println!("-c - only print the number of detections");
+                println!("-a [list of algorithms to run] - specify the algorithms to run. If not specified, the default algorithms are run.");
+                println!("Default algorithms:");
+                for (key, value) in default_algorithm_strings.iter() {
+                    if *value {
+                        println!("  {}", key);
+                    }
+                }
+                println!("Other algorithms:");
+                for (key, value) in default_algorithm_strings.iter() {
+                    if !*value {
+                        println!("  {}", key);
+                    }
+                }
+                return Ok(());
+            },
             _ => panic!("Unknown argument: {}", arg),
         }
+        i += 1;
     }
     if path.is_empty() {
         panic!("No input file path provided");
@@ -81,16 +124,10 @@ fn main() -> Result<(), Error> {
     event_instances.insert("viewangles_to_csv", Box::new(ViewAnglesToCSV::new()));
     event_instances.insert("write_to_file", Box::new(DemoAnalysisFileWriter::new(&header)));
 
-    for algorithm in algorithm_strings.iter() {
-        if !event_instances.contains_key(algorithm.as_str()) {
-            panic!("Algorithm '{}' is not a valid algorithm", algorithm);
-        }
-    }
-
     let events: Vec<Box<dyn DemoTickEvent>> = event_instances
         .into_iter()
         .filter_map(|(name, event)| {
-            if algorithm_strings.contains(&name.to_string()) {
+            if algorithm_strings.contains_key(&name.to_string()) {
                 Some(event)
             } else {
                 None
