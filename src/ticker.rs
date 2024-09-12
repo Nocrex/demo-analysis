@@ -18,6 +18,11 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
 
     dev_print!("Starting analysis...");
 
+    // DemoTickEvent::init()
+    for event in events.iter_mut() {
+        let _ = event.init();
+    }
+
     while ticker_result.is_ok_and(|b| b) { 
 
         // Get the GameState from the parser
@@ -27,11 +32,6 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
         if state.tick == prior_tick {
             ticker_result = ticker.tick();
             continue;
-        }
-
-        // DemoTickEvent::init()
-        for event in events.iter_mut() {
-            let _ = event.init();
         }
 
         if !crate::SILENT.load(std::sync::atomic::Ordering::Relaxed) && last_update.elapsed().as_secs() >= 1 {
