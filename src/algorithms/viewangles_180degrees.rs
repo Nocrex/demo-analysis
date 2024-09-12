@@ -2,11 +2,17 @@ use anyhow::Error;
 use serde_json::{json, Map, Value};
 use crate::{DemoTickEvent, Detection};
 
+// This example file looks for any examples of players rotating 180 degrees within a single server tick.
+
+// To start, define a struct containing any information you want to store/share between events.
 pub struct ViewAngles180Degrees {
     previous: Map<String, Value>,
 }
 
-// This example file looks for any examples of players rotating 180 degrees within a single server tick.
+// Then implement a pub fn new for your struct.
+// Use the new() function to initalize any variables specified in the struct.
+// IMPORTANT: new() gets called even if the algorithm is not selected! Don't do any non-ephemeral operations here; use DemoTickEvent::init() instead.
+// Additional helper functions and consts also go here.
 
 impl ViewAngles180Degrees {
     pub fn new() -> Self {
@@ -30,6 +36,10 @@ impl ViewAngles180Degrees {
     }
 
 }
+
+// Implement the DemoTickEvent trait. This is where the bulk of your algorithm resides.
+// Any interesting detections should be documented in a Detection instance and returned within a vector.
+// You can attach whatever json data you want to each detection via the "data" field.
 
 impl DemoTickEvent for ViewAngles180Degrees {
     fn on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error> {
@@ -84,9 +94,5 @@ impl DemoTickEvent for ViewAngles180Degrees {
         self.previous = tick.clone();
 
         Ok(detections)
-    }
-
-    fn finish(&mut self) -> Result<Vec<Detection>, Error> {
-        Ok(vec![])
     }
 }

@@ -28,7 +28,7 @@ fn main() -> Result<(), Error> {
     let mut args = env::args().skip(1);
 
     // Algorithms that should run by default go here.
-    // Anything that writes to the file system should NOT go here.
+    // Any dev stuff and anything that modifies files should NOT go here.
     let mut algorithm_strings: Vec<String> = vec![
         "viewangles_180degrees".to_string()
     ];
@@ -111,10 +111,20 @@ fn main() -> Result<(), Error> {
 
 pub trait DemoTickEvent {
 
+    // Called before any other events
+    // Use this instead of ::new() when performing any non-ephemeral actions e.g. modifying files
+    fn init<'a>(&mut self) -> Result<Vec<Detection>, Error> {
+        Ok(vec![])
+    }
+
+    // Called for each tick. Contains the json state for the tick
+    // Try the write_to_file algorithm to see what those states look like (there is one state per line)
     fn on_tick<'a>(&mut self, _tick: Value) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 
+    // Called after all other events
+    // Use for cleaning up or for aggregate analysis
     fn finish<'a>(&mut self) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }

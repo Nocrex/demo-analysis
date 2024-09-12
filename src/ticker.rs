@@ -31,6 +31,11 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
             continue;
         }
 
+        // DemoTickEvent::init()
+        for event in events.iter_mut() {
+            let _ = event.init();
+        }
+
         if !crate::SILENT.load(std::sync::atomic::Ordering::Relaxed) && last_update.elapsed().as_secs() >= 1 {
             let tps: u32 = u32::from(state.tick - (tps_start_window.elapsed().as_secs() as u32)) / tps_start_window.elapsed().as_secs() as u32;
             dev_print!("Processing tick {} ({} remaining, {} tps)", state.tick, header.ticks - u32::from(state.tick), tps);
@@ -41,6 +46,7 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
         let mut json = get_gamestate_json(state);
         json = modify_json(&mut json);
 
+        // DemoTickEvent::on_tick()
         for event in events.iter_mut() {
             match event.on_tick(json.clone()) {
                 Ok(d) => {
@@ -57,8 +63,9 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
         ticker_result = ticker.tick();
     }
 
+    // DemoTickEvent::finish()
     for event in events.iter_mut() {
-        let _ = event.finish(); // Fire the end event.
+        let _ = event.finish();
     }
 
     print_metadata(header);

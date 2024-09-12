@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Write;
 
 use anyhow::Error;
@@ -6,18 +6,30 @@ use serde_json::{Map, Value};
 use crate::{DemoTickEvent, Detection};
 
 pub struct ViewAnglesToCSV {
-    file: File,
+    file: Option<File>,
     previous: Map<String, Value>,
 }
 
 impl ViewAnglesToCSV {
     pub fn new() -> Self {
-        let mut writer: ViewAnglesToCSV = ViewAnglesToCSV { 
-            file: File::create("./test/viewangles.csv").unwrap(),
+        let writer: ViewAnglesToCSV = ViewAnglesToCSV { 
+            file: None,
             previous: Map::new(),
         };
-        writeln!(writer.file, "tick,steam_id,origin_x,origin_y,origin_z,viewangle,pitchangle,va_delta,pa_delta").unwrap();
         writer
+    }
+
+    fn init_file(&mut self, file_path: &str) {
+        self.file = Some(match File::create(file_path) {
+            Ok(file) => file,
+            Err(err) => {
+                if err.kind() != std::io::ErrorKind::AlreadyExists {
+                    panic!("Error creating file: {}", err);
+                }
+                fs::remove_file(file_path).unwrap();
+                File::create(file_path).unwrap()
+            }
+        });
     }
 
     fn calculate_delta(&self, curr_viewangle: f64, curr_pitchangle: f64, prev_viewangle: f64, prev_pitchangle: f64, tick_delta: u64) -> (f64, f64) {
@@ -36,6 +48,13 @@ impl ViewAnglesToCSV {
 }
 
 impl DemoTickEvent for ViewAnglesToCSV {
+
+    fn init<'a>(&mut self) -> Result<Vec<Detection>, Error> {
+        self.init_file("./test/viewangles_to_csv.csv");
+        writeln!(self.file.as_mut().unwrap(), "tick,steam_id,origin_x,origin_y,origin_z,viewangle,pitchangle,va_delta,pa_delta").unwrap();
+        Ok(vec![])
+    }
+
     fn on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error> {
         let tick = tick.as_object().unwrap();
         let ticknum = tick["tick"].as_u64().unwrap();
@@ -74,15 +93,11 @@ impl DemoTickEvent for ViewAnglesToCSV {
                 ))
                 .unwrap_or((f64::NAN, f64::NAN));
 
-            writeln!(self.file, "{},{},{},{},{},{},{},{},{}", ticknum, steam_id, origin_x, origin_y, origin_z, viewangle, pitchangle, va_delta, pa_delta).unwrap();
+            writeln!(self.file.as_mut().unwrap(), "{},{},{},{},{},{},{},{},{}", ticknum, steam_id, origin_x, origin_y, origin_z, viewangle, pitchangle, va_delta, pa_delta).unwrap();
         }
 
         self.previous = tick.clone();
 
-        Ok(vec![])
-    }
-
-    fn finish(&mut self) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 }
