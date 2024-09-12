@@ -34,12 +34,12 @@ impl ViewAngles180Degrees {
         let pa_delta = (curr_pitchangle - prev_pitchangle) / tick_delta as f64;
         (va_delta, pa_delta)
     }
-
 }
 
 // Implement the DemoTickEvent trait. This is where the bulk of your algorithm resides.
 // Any interesting detections should be documented in a Detection instance and returned within a vector.
 // You can attach whatever json data you want to each detection via the "data" field.
+// You don't have to implement every function in DemoTickEvent; see its definition for a complete list of functions.
 
 impl DemoTickEvent for ViewAngles180Degrees {
     fn on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error> {
@@ -79,6 +79,9 @@ impl DemoTickEvent for ViewAngles180Degrees {
                 ))
                 .unwrap_or((f64::NAN, f64::NAN));
 
+            // Creating the detection object
+            // Avoid creating multiple detection objects for the same player and tick.
+            // Nothing will break if you do, but it will overrepresent the data point.
             if va_delta.abs() >= 180.0 || pa_delta.abs() >= 180.0 {
                 detections.push(Detection { 
                     tick: ticknum,
@@ -93,6 +96,8 @@ impl DemoTickEvent for ViewAngles180Degrees {
 
         self.previous = tick.clone();
 
+        // It's okay if there's no detections at this point.
+        // Returning an empty vector is equivalent to returning None.
         Ok(detections)
     }
 }

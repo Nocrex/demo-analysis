@@ -17,12 +17,15 @@ use algorithms::{
     write_to_file::DemoAnalysisFileWriter
 };
 
-use tf_demo_parser::demo::parser::gamestateanalyser::GameStateAnalyser;
+use tf_demo_parser::demo::{header::Header, parser::gamestateanalyser::GameStateAnalyser};
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
 
 pub static SILENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub static COUNT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 fn main() -> Result<(), Error> {
+    let start = std::time::Instant::now();
+
     let mut silent = false;
     let mut path = String::new();
     let mut args = env::args().skip(1);
@@ -50,6 +53,9 @@ fn main() -> Result<(), Error> {
                 if algorithm_strings.len() == 0 {
                     panic!("No algorithms specified");
                 }
+            },
+            "-c" => {
+                COUNT.store(true, std::sync::atomic::Ordering::SeqCst);
             },
             _ => panic!("Unknown argument: {}", arg),
         }
@@ -100,11 +106,20 @@ fn main() -> Result<(), Error> {
 
     detections.extend(perform_tick(&header, ticker.borrow_mut(), events));
 
-    if !SILENT.load(std::sync::atomic::Ordering::Relaxed) {
-        println!("{}", serde_json::to_string_pretty(&detections).unwrap());
-    } else {
+    if SILENT.load(std::sync::atomic::Ordering::Relaxed) {
         println!("{}", serde_json::to_string(&detections).unwrap());
+    } else if COUNT.load(std::sync::atomic::Ordering::Relaxed) {
+        println!("Detection count: {}", detections.len());
+    } else {
+        println!("{}", serde_json::to_string_pretty(&detections).unwrap());
     }
+
+    print_metadata(&header);
+
+    let total_ticks = header.ticks;
+    let total_time = start.elapsed().as_secs_f64();
+    let total_tps = (total_ticks as f64) / total_time;
+    dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
 
     Ok(())
 }
@@ -135,6 +150,17 @@ pub struct Detection {
     pub tick: u64,
     pub player: u64,
     pub data: Value
+}
+
+fn print_metadata(header: &Header) {
+    dev_print!("Map: {}", header.map);
+    let hours = (header.duration / 3600.0).floor();
+    let minutes = ((header.duration % 3600.0) / 60.0).floor();
+    let seconds = (header.duration % 60.0).floor();
+    let milliseconds = ((header.duration % 1.0) * 100.0).floor();
+    dev_print!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, header.ticks);
+    dev_print!("User: {}", header.nick);
+    dev_print!("Server: {}", header.server);
 }
 
 #[macro_export]

@@ -18,8 +18,6 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
 
     dev_print!("Starting analysis...");
 
-    print_metadata(header);
-
     while ticker_result.is_ok_and(|b| b) { 
 
         // Get the GameState from the parser
@@ -68,25 +66,7 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
         let _ = event.finish();
     }
 
-    print_metadata(header);
-
-    let total_ticks = header.ticks;
-    let total_time = start.elapsed().as_secs_f64();
-    let total_tps = (total_ticks as f64) / total_time;
-    dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
-
     return detections;
-}
-
-fn print_metadata(header: &Header) {
-    dev_print!("Map: {}", header.map);
-    let hours = (header.duration / 3600.0).floor();
-    let minutes = ((header.duration % 3600.0) / 60.0).floor();
-    let seconds = (header.duration % 60.0).floor();
-    let milliseconds = ((header.duration % 1.0) * 100.0).floor();
-    dev_print!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, header.ticks);
-    dev_print!("User: {}", header.nick);
-    dev_print!("Server: {}", header.server);
 }
 
 fn get_gamestate_json(state: &GameState) -> Value {
