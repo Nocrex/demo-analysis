@@ -107,7 +107,9 @@ fn main() -> Result<(), Error> {
     let mut detections = Vec::new();
     detections.extend(perform_tick(&header, ticker.borrow_mut(), events));
 
-    print_metadata(&header);
+    if start.elapsed().as_secs() >= 10 {
+        print_metadata(&header);
+    }
 
     let total_ticks = header.ticks;
     let total_time = start.elapsed().as_secs_f64();
