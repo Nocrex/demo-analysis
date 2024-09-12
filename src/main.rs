@@ -102,9 +102,17 @@ fn main() -> Result<(), Error> {
         panic!("No algorithms specified");
     }
 
-    let mut detections = Vec::new();
+    print_metadata(&header);
 
+    let mut detections = Vec::new();
     detections.extend(perform_tick(&header, ticker.borrow_mut(), events));
+
+    print_metadata(&header);
+
+    let total_ticks = header.ticks;
+    let total_time = start.elapsed().as_secs_f64();
+    let total_tps = (total_ticks as f64) / total_time;
+    dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
 
     if SILENT.load(std::sync::atomic::Ordering::Relaxed) {
         println!("{}", serde_json::to_string(&detections).unwrap());
@@ -113,13 +121,6 @@ fn main() -> Result<(), Error> {
     } else {
         println!("{}", serde_json::to_string_pretty(&detections).unwrap());
     }
-
-    print_metadata(&header);
-
-    let total_ticks = header.ticks;
-    let total_time = start.elapsed().as_secs_f64();
-    let total_tps = (total_ticks as f64) / total_time;
-    dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
 
     Ok(())
 }
