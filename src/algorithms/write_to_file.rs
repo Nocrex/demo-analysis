@@ -5,7 +5,7 @@ use anyhow::Error;
 use serde_json::Value;
 use tf_demo_parser::demo::header::Header;
 
-use crate::DemoTickEvent;
+use crate::{DemoTickEvent, Detection};
 
 // Implement the DemoTickEvent trait. This is where the bulk of your algorithm resides.
 // Return values:
@@ -15,7 +15,7 @@ use crate::DemoTickEvent;
 
 impl<'a> DemoTickEvent for DemoAnalysisFileWriter<'a> {
     
-    fn on_tick(&mut self, state: Value) -> Result<Option<Value>, Error> {
+    fn on_tick(&mut self, state: Value) -> Result<Vec<Detection>, Error> {
         self.state_history.push(state);
     
         if self.state_history.len() > DemoAnalysisFileWriter::MAX_STATES_IN_MEMORY {
@@ -24,10 +24,10 @@ impl<'a> DemoTickEvent for DemoAnalysisFileWriter<'a> {
             self.state_history.clear();
         }
 
-        Ok(None)
+        Ok(vec![])
     }
 
-    fn finish(&mut self) -> Result<Option<Value>, Error> {
+    fn finish(&mut self) -> Result<Vec<Detection>, Error> {
 
         if self.state_history.len() > 0 {
             self.write_states_to_file();
@@ -37,7 +37,7 @@ impl<'a> DemoTickEvent for DemoAnalysisFileWriter<'a> {
         writeln!(self.file, "\n]").unwrap();
         let _ = self.file.flush();
 
-        Ok(None)
+        Ok(vec![])
     }
 }
 

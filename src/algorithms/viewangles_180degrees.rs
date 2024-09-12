@@ -1,23 +1,19 @@
-use std::fs::File;
-use std::io::Write;
-
 use anyhow::Error;
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use crate::{DemoTickEvent, Detection};
 
-pub struct ViewAnglesToCSV {
-    file: File,
+pub struct ViewAngles180Degrees {
     previous: Map<String, Value>,
 }
 
-impl ViewAnglesToCSV {
+// This example file looks for any examples of players rotating 180 degrees within a single server tick.
+
+impl ViewAngles180Degrees {
     pub fn new() -> Self {
-        let mut writer: ViewAnglesToCSV = ViewAnglesToCSV { 
-            file: File::create("./test/viewangles.csv").unwrap(),
+        let analyser: ViewAngles180Degrees = ViewAngles180Degrees { 
             previous: Map::new(),
         };
-        writeln!(writer.file, "tick,steam_id,origin_x,origin_y,origin_z,viewangle,pitchangle,va_delta,pa_delta").unwrap();
-        writer
+        analyser
     }
 
     fn calculate_delta(&self, curr_viewangle: f64, curr_pitchangle: f64, prev_viewangle: f64, prev_pitchangle: f64, tick_delta: u64) -> (f64, f64) {
@@ -35,19 +31,18 @@ impl ViewAnglesToCSV {
 
 }
 
-impl DemoTickEvent for ViewAnglesToCSV {
+impl DemoTickEvent for ViewAngles180Degrees {
     fn on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error> {
         let tick = tick.as_object().unwrap();
         let ticknum = tick["tick"].as_u64().unwrap();
         let players = tick["players"].as_array().unwrap();
 
+        let mut detections = Vec::new();
+
         for player in players {
             let e = player.as_object().unwrap();
 
             let steam_id = e["info"]["steamId"].as_str().unwrap();
-            let origin_x = e["position"]["x"].as_f64().unwrap();
-            let origin_y = e["position"]["y"].as_f64().unwrap();
-            let origin_z = e["position"]["z"].as_f64().unwrap();
             let viewangle = e["view_angle"].as_f64().unwrap();
             let pitchangle = e["pitch_angle"].as_f64().unwrap();
 
@@ -74,12 +69,21 @@ impl DemoTickEvent for ViewAnglesToCSV {
                 ))
                 .unwrap_or((f64::NAN, f64::NAN));
 
-            writeln!(self.file, "{},{},{},{},{},{},{},{},{}", ticknum, steam_id, origin_x, origin_y, origin_z, viewangle, pitchangle, va_delta, pa_delta).unwrap();
+            if va_delta.abs() >= 180.0 || pa_delta.abs() >= 180.0 {
+                detections.push(Detection { 
+                    tick: ticknum,
+                    player: player.get("info").unwrap()
+                        .get("userId")
+                        .unwrap_or(&json!(0))
+                        .as_u64().unwrap(),
+                    data: json!({ "va_delta": va_delta, "pa_delta": pa_delta })
+                });
+            }
         }
 
         self.previous = tick.clone();
 
-        Ok(vec![])
+        Ok(detections)
     }
 
     fn finish(&mut self) -> Result<Vec<Detection>, Error> {

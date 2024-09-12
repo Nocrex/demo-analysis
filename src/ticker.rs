@@ -4,15 +4,17 @@ use tf_demo_parser::demo::header::Header;
 use tf_demo_parser::demo::parser::{gamestateanalyser::{GameState, GameStateAnalyser}, DemoTicker};
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
 
-use crate::{dev_print, DemoTickEvent};
+use crate::{dev_print, DemoTickEvent, Detection};
 
-pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnalyser>, mut events: Vec<Box<dyn DemoTickEvent + 'a>>) {
+pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnalyser>, mut events: Vec<Box<dyn DemoTickEvent + 'a>>) -> Vec<Detection> {
   
     let mut ticker_result: Result<bool, ParseError> = Ok(true);
     let mut last_update = std::time::Instant::now();
     let mut prior_tick: u32 = 1;
     let start = std::time::Instant::now();
     let mut tps_start_window = start;
+    
+    let mut detections: Vec<Detection> = Vec::new();
 
     dev_print!("Starting analysis...");
 
@@ -40,7 +42,14 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
         json = modify_json(&mut json);
 
         for event in events.iter_mut() {
-            event.on_tick(json.clone()).unwrap();
+            match event.on_tick(json.clone()) {
+                Ok(d) => {
+                    detections.extend(d);       
+                },
+                Err(e) => {
+                    dev_print!("Error: {}", e);
+                }
+            }
         }
         
         prior_tick = u32::from(state.tick);
@@ -58,6 +67,8 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
     let total_time = start.elapsed().as_secs_f64();
     let total_tps = (total_ticks as f64) / total_time;
     dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
+
+    return detections;
 }
 
 fn print_metadata(header: &Header) {
