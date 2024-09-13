@@ -42,6 +42,13 @@ impl ViewAngles180Degrees {
 // You don't have to implement every function in DemoTickEvent; see its definition for a complete list of functions.
 
 impl<'a> DemoTickEvent<'a> for ViewAngles180Degrees {
+    // REQUIRED: Should this algorithm run by default if -a isn't specified?
+    // Generally should be true, unless you're doing dev-only stuff (writing to files, printing debug output, etc).
+    fn default(&self) -> bool {
+        true
+    }
+
+    // REQUIRED: Set your algorithm's name here. Best practice is to match the filename.
     fn algorithm_name(&self) -> &str {
         "viewangles_180degrees"
     }

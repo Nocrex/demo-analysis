@@ -21,93 +21,40 @@ use tf_demo_parser::demo::{header::Header, parser::gamestateanalyser::GameStateA
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
 
 pub static SILENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-pub static COUNT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+use getopts::Options;
 
 fn main() -> Result<(), Error> {
     let start = std::time::Instant::now();
 
-    let mut silent = false;
-    let mut path = String::new();
-    let args: Vec<String> = env::args().skip(1).collect();
+    let mut opts = Options::new();
+    opts.optopt("i", "input", "set input file path", "PATH");
+    opts.optflag("q", "quiet", "silence all output except for the final JSON string");
+    opts.optopt("a", "algorithms", "specify the algorithms to run. If not specified, the default algorithms are run.", "ALGORITHMS");
+    opts.optflag("c", "count", "only print the number of detections");
+    opts.optflag("h", "help", "print this help menu");
 
-    // List of all algorithms that can be executed.
-    // Each algorithm can be individually invoked with -a <name>
-    // If the associated bool is initialised to true, then the algorithm will run if no argument is passed to -a.
-    // Any dev stuff and anything that modifies files should NOT run by default.
-    let default_algorithm_strings: std::collections::HashMap<String, bool> = std::collections::HashMap::from([
-        ("viewangles_180degrees".to_string(), true),
-        ("viewangles_to_csv".to_string(), false),
-        ("write_to_file".to_string(), false),
-    ]);
-    let mut algorithm_strings = default_algorithm_strings.clone();
+    fn print_help(opts: &getopts::Options) {
+        println!("{}", opts.usage("Usage: analysis-template [options]"));
+    }
 
-    let mut i = 0;
-    while i < args.len() {
-        let arg = &args.clone()[i];
-        match arg.as_str() {
-            "-i" => {
-                if i + 1 >= args.len() {
-                    panic!("No path specified after -i");
-                }
-                path = args[i + 1].clone();
-                i += 1;
-                if path.starts_with('-') {
-                    panic!("No path specified after -i");
-                }
-            },
-            "-q" => silent = true,
-            "-a" => {
-                algorithm_strings.clear();
-                let mut reached_a = false;
-                for algorithm in args.clone() {
-                    if !reached_a {
-                        if algorithm.starts_with("-a") {
-                            reached_a = true;
-                        }
-                        continue;
-                    } else if algorithm.starts_with("-") {
-                        break;
-                    } else if !default_algorithm_strings.contains_key(&algorithm) {
-                        panic!("Invalid algorithm specified: {}", algorithm);
-                    }
-                    algorithm_strings.insert(algorithm, true);
-                    i += 1;
-                }
-                if algorithm_strings.values().all(|v| !*v) {
-                    panic!("No algorithms specified");
-                }
-            },
-            "-c" => {
-                COUNT.store(true, std::sync::atomic::Ordering::SeqCst);
-            },
-            "-h" => {
-                println!("-i <path> (required) - specify the demo file to analyze");
-                println!("-q - silence all output except for the final JSON string");
-                println!("-c - only print the number of detections");
-                println!("-a [list of algorithms to run] - specify the algorithms to run. If not specified, the default algorithms are run.");
-                println!("Default algorithms:");
-                for (key, value) in default_algorithm_strings.iter() {
-                    if *value {
-                        println!("  {}", key);
-                    }
-                }
-                println!("Other algorithms:");
-                for (key, value) in default_algorithm_strings.iter() {
-                    if !*value {
-                        println!("  {}", key);
-                    }
-                }
-                return Ok(());
-            },
-            _ => panic!("Unknown argument: {}", arg),
+    let matches = match opts.parse(env::args().skip(1)) {
+        Ok(m) => m,
+        Err(_) => {
+            print_help(&opts);
+            return Ok(());
         }
-        i += 1;
+    };
+
+    if matches.opt_present("h") {
+        print_help(&opts);
+        return Ok(());
     }
-    if path.is_empty() {
-        panic!("No input file path provided");
-    }
-    
+
+    let path = matches.opt_str("i").expect("No input file path provided");
+    let silent = matches.opt_present("q");
     SILENT.store(silent, std::sync::atomic::Ordering::SeqCst);
+
     let file = fs::read(path)?;
     let demo: Demo = Demo::new(&file);
     let parser = DemoParser::new_with_analyser(demo.get_stream(), GameStateAnalyser::new());
@@ -119,30 +66,35 @@ fn main() -> Result<(), Error> {
 
     let (header, mut ticker ) = ticker.unwrap();
 
-    let mut event_instances: std::collections::HashMap<&str, Box<dyn DemoTickEvent>> = std::collections::HashMap::new();
-    event_instances.insert("viewangles_180degrees", Box::new(ViewAngles180Degrees::new()));
-    event_instances.insert("viewangles_to_csv", Box::new(ViewAnglesToCSV::new()));
-    event_instances.insert("write_to_file", Box::new(WriteToFile::new(&header)));
+    let mut algorithms: Vec<Box<dyn DemoTickEvent>> = vec![
+        Box::new(ViewAngles180Degrees::new()),
+        Box::new(ViewAnglesToCSV::new()),
+        Box::new(WriteToFile::new(&header)),
+    ];
 
-    let events: Vec<Box<dyn DemoTickEvent>> = event_instances
-        .into_iter()
-        .filter_map(|(name, event)| {
-            if algorithm_strings.contains_key(&name.to_string()) {
-                Some(event)
-            } else {
-                None
-            }
-        })
-        .collect();
+    let specified_algorithms = matches.opt_strs("a");
+    if specified_algorithms.is_empty() && !matches.opt_present("a") {
+        algorithms.retain(|a| a.default());
+    } else {
+        algorithms.retain(|a| specified_algorithms.contains(&a.algorithm_name().to_string()));
+    }
 
-    if events.is_empty() {
+    if algorithms.is_empty() {
         panic!("No algorithms specified");
+    }
+
+    let unknown_algorithms: Vec<String> = specified_algorithms
+        .into_iter()
+        .filter(|a| algorithms.iter().all(|b| b.algorithm_name() != *a))
+        .collect();
+    if !unknown_algorithms.is_empty() {
+        panic!("Unknown algorithms specified: {}", unknown_algorithms.join(", "));
     }
 
     print_metadata(&header);
 
     let mut detections = Vec::new();
-    detections.extend(perform_tick(&header, ticker.borrow_mut(), events));
+    detections.extend(perform_tick(&header, ticker.borrow_mut(), algorithms));
 
     if start.elapsed().as_secs() >= 10 {
         print_metadata(&header);
@@ -155,7 +107,7 @@ fn main() -> Result<(), Error> {
 
     if SILENT.load(std::sync::atomic::Ordering::Relaxed) {
         println!("{}", serde_json::to_string(&detections).unwrap());
-    } else if COUNT.load(std::sync::atomic::Ordering::Relaxed) {
+    } else if matches.opt_present("c") {
         println!("Detection count: {}", detections.len());
     } else {
         println!("{}", serde_json::to_string_pretty(&detections).unwrap());
