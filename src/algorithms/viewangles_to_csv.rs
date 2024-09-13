@@ -47,9 +47,12 @@ impl ViewAnglesToCSV {
 
 }
 
-impl DemoTickEvent for ViewAnglesToCSV {
+impl<'a> DemoTickEvent<'a> for ViewAnglesToCSV {
+    fn algorithm_name(&self) -> &str {
+        "viewangles_to_csv"
+    }
 
-    fn init<'a>(&mut self) -> Result<Vec<Detection>, Error> {
+    fn init(&mut self) -> Result<Vec<Detection>, Error> {
         self.init_file("./test/viewangles_to_csv.csv");
         writeln!(self.file.as_mut().unwrap(), "tick,steam_id,origin_x,origin_y,origin_z,viewangle,pitchangle,va_delta,pa_delta").unwrap();
         Ok(vec![])

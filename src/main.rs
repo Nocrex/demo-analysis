@@ -14,7 +14,7 @@ use crate::ticker::perform_tick;
 use algorithms::{
     viewangles_180degrees::ViewAngles180Degrees, 
     viewangles_to_csv::ViewAnglesToCSV,
-    write_to_file::DemoAnalysisFileWriter
+    write_to_file::WriteToFile
 };
 
 use tf_demo_parser::demo::{header::Header, parser::gamestateanalyser::GameStateAnalyser};
@@ -122,7 +122,7 @@ fn main() -> Result<(), Error> {
     let mut event_instances: std::collections::HashMap<&str, Box<dyn DemoTickEvent>> = std::collections::HashMap::new();
     event_instances.insert("viewangles_180degrees", Box::new(ViewAngles180Degrees::new()));
     event_instances.insert("viewangles_to_csv", Box::new(ViewAnglesToCSV::new()));
-    event_instances.insert("write_to_file", Box::new(DemoAnalysisFileWriter::new(&header)));
+    event_instances.insert("write_to_file", Box::new(WriteToFile::new(&header)));
 
     let events: Vec<Box<dyn DemoTickEvent>> = event_instances
         .into_iter()
@@ -164,23 +164,27 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-pub trait DemoTickEvent {
+pub trait DemoTickEvent<'a> {
+    fn algorithm_name(&self) -> &str {
+        panic!("algorithm_name() not implemented for {}", std::any::type_name::<Self>());
+    }
 
     // Called before any other events
     // Use this instead of ::new() when performing any non-ephemeral actions e.g. modifying files
-    fn init<'a>(&mut self) -> Result<Vec<Detection>, Error> {
+    fn init(&mut self) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 
     // Called for each tick. Contains the json state for the tick
     // Try the write_to_file algorithm to see what those states look like (there is one state per line)
-    fn on_tick<'a>(&mut self, _tick: Value) -> Result<Vec<Detection>, Error> {
+    // cargo run -- -i demo.dem -a write_to_file
+    fn on_tick(&mut self, _tick: Value) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 
     // Called after all other events
     // Use for cleaning up or for aggregate analysis
-    fn finish<'a>(&mut self) -> Result<Vec<Detection>, Error> {
+    fn finish(&mut self) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 }
@@ -188,6 +192,7 @@ pub trait DemoTickEvent {
 #[derive(Serialize, Deserialize)]
 pub struct Detection {
     pub tick: u64,
+    pub algorithm: String,
     pub player: u64,
     pub data: Value
 }

@@ -9,14 +9,14 @@ use crate::{DemoTickEvent, Detection};
 
 // header is not needed for this algorithm, but is included to serve as an example of how to handle the lifetimes.
 #[allow(dead_code)]
-pub struct DemoAnalysisFileWriter<'a> {
+pub struct WriteToFile<'a> {
     state_history: Vec<Value>,
     file: Option<File>,
     first_write: bool,
     header: &'a Header
 }
 
-impl<'a> DemoAnalysisFileWriter<'a> {
+impl<'a> WriteToFile<'a> {
     const MAX_STATES_IN_MEMORY: usize = 1024;
 
     fn write_states_to_file(&mut self) {
@@ -47,8 +47,8 @@ impl<'a> DemoAnalysisFileWriter<'a> {
         });
     }
 
-    pub fn new (header: &'a Header) -> DemoAnalysisFileWriter<'a> {
-        DemoAnalysisFileWriter {
+    pub fn new (header: &'a Header) -> WriteToFile<'a> {
+        WriteToFile {
             state_history: Vec::new(),
             file: None,
             first_write: true,
@@ -57,9 +57,11 @@ impl<'a> DemoAnalysisFileWriter<'a> {
     }
 }
 
-impl<'a> DemoTickEvent for DemoAnalysisFileWriter<'a> {
+impl<'a> DemoTickEvent<'a> for WriteToFile<'a> {
+    fn algorithm_name(&self) -> &str {
+        "write_to_file"
+    }
 
-    
     fn init(&mut self) -> Result<Vec<Detection>, Error> {
         self.init_file("./test/write_to_file.json");
 
@@ -71,7 +73,7 @@ impl<'a> DemoTickEvent for DemoAnalysisFileWriter<'a> {
     fn on_tick(&mut self, state: Value) -> Result<Vec<Detection>, Error> {
         self.state_history.push(state);
     
-        if self.state_history.len() > DemoAnalysisFileWriter::MAX_STATES_IN_MEMORY {
+        if self.state_history.len() > WriteToFile::MAX_STATES_IN_MEMORY {
             self.write_states_to_file();
     
             self.state_history.clear();

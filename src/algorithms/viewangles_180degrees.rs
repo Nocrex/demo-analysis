@@ -41,7 +41,11 @@ impl ViewAngles180Degrees {
 // You can attach whatever json data you want to each detection via the "data" field.
 // You don't have to implement every function in DemoTickEvent; see its definition for a complete list of functions.
 
-impl DemoTickEvent for ViewAngles180Degrees {
+impl<'a> DemoTickEvent<'a> for ViewAngles180Degrees {
+    fn algorithm_name(&self) -> &str {
+        "viewangles_180degrees"
+    }
+
     fn on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error> {
         let tick = tick.as_object().unwrap();
         let ticknum = tick["tick"].as_u64().unwrap();
@@ -85,6 +89,7 @@ impl DemoTickEvent for ViewAngles180Degrees {
             if va_delta.abs() >= 180.0 || pa_delta.abs() >= 180.0 {
                 detections.push(Detection { 
                     tick: ticknum,
+                    algorithm: self.algorithm_name().to_string(),
                     player: player.get("info").unwrap()
                         .get("userId")
                         .unwrap_or(&json!(0))
@@ -96,8 +101,6 @@ impl DemoTickEvent for ViewAngles180Degrees {
 
         self.previous = tick.clone();
 
-        // It's okay if there's no detections at this point.
-        // Returning an empty vector is equivalent to returning None.
         Ok(detections)
     }
 }
