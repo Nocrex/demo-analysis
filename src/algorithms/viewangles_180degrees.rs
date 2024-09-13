@@ -1,5 +1,6 @@
 use anyhow::Error;
 use serde_json::{json, Map, Value};
+use steamid_ng::SteamID;
 use crate::{DemoTickEvent, Detection};
 
 // This example file looks for any examples of players rotating 180 degrees within a single server tick.
@@ -97,10 +98,7 @@ impl<'a> DemoTickEvent<'a> for ViewAngles180Degrees {
                 detections.push(Detection { 
                     tick: ticknum,
                     algorithm: self.algorithm_name().to_string(),
-                    player: player.get("info").unwrap()
-                        .get("userId")
-                        .unwrap_or(&json!(0))
-                        .as_u64().unwrap(),
+                    player: u64::from(SteamID::from_steam3(steam_id).unwrap()),
                     data: json!({ "va_delta": va_delta, "pa_delta": pa_delta })
                 });
             }
