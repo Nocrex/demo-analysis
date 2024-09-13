@@ -117,7 +117,11 @@ The empty array at the bottom means there were no detections. If there were dete
 ```
 <p style="font-size: smaller; color: gray">These are real detections against real cheaters, but the Steam IDs have been substituted for now-deleted bot accounts.</p>
 
-In production, the `-q` flag is used to silence all debug info, leaving only the detection output in stdout. The output is a json array containing serialized Detection objects. The `Detection` struct is used to represent a single detection event. It contains the following fields:
+In production, the `-q` flag is used to silence all debug info, leaving only the detection output in stdout. 
+
+### Output
+
+The output is a json array containing serialized Detection objects. The `Detection` struct is used to represent a single detection event. It contains the following fields:
 
 - `tick: u64`: The tick number at which the detection occurred.
 - `algorithm: String`: The name of the algorithm which produced the detection.
@@ -136,13 +140,20 @@ The program accepts the following arguments:
 
 ### Writing your own algorithm
 
-To write your own algorithm, you must implement the `DemoTickEvent` trait. To do this, create a new file in the `src/algorithms/` directory. For example, if you want to write a wallhack detection algorithm, you might create `src/algorithms/wallhack.rs`.
+This section describes the creation of a cheat detection algorithm. You can view the final product of this tutorial with supporting comments at `src/algorithms/viewangles_180degrees.rs`.
 
-In this file, you must define a struct that implements `DemoTickEvent`. The struct should have a constructor (`new`) and should implement one or more functions from the `DemoTickEvent` trait. These functions return a `Result<Vec<Detection>, Error>`.
+To write your own algorithm, you must implement the `DemoTickEvent` trait. To do this, create a new file in the `src/algorithms/` directory. For example, if you want to detect 180 degree snaps, you might create `src/algorithms/viewangles_180degrees.rs`. In this file, you can define whatever structs, types etc you need to create your algorithm. At minimum, you need to implement some of the functions in `DemoTickEvent`:
 
-You must implement `fn algorithm_name(&self) -> &str` to give your algorithm a name, then use that function to set the algorithm field in every Detection object you return.
+- `default(&self) -> bool` (REQUIRED): Should this algorithm run by default if -a isn't specified?
+- `algorithm_name(&self) -> &str` (REQUIRED): Return your algorithm's name here. Best practice is to match the filename.
+- `init(&mut self) -> Result<Vec<Detection>, Error>`: Called before any other events. Use this instead of your object's constructor when performing any non-ephemeral actions e.g. modifying files.
+- `on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error>`: Called for each tick. The json state for the tick is passed in as a json Value.
+- `finish(&mut self) -> Result<Vec<Detection>, Error>`: Called after all other events. Use for cleaning up or for aggregate analysis.
 
-To add your algorithm to the project, you must modify `src/main.rs` to include your algorithm in the default list of algorithms, or to include it in the list of available algorithms that can be run with the `-a` flag.
+The functions that return `Result<Vec<Detection>, Error>` are the entry points for your actual algorithm. Your task is to process the incoming data and produce Detection objects for each event where cheating is suspected.
 
-For example, if you wrote a wallhack detection algorithm in `src/algorithms/wallhack.rs`, you would add the following lines to `src/main.rs` to include it in the default list of algorithms:
+The incoming data is provided as a json value via `DemoTickEvent::on_tick`. To understand the structure of this object, try `cargo run --release -i "path/to/demo.dem -a write_to_file` to write all the json states to one large file. 
 
+To register a detection, include it in the vector that's returned at the end of any detection function. Detections don't have to be returned in the same function call that the relevant data is introduced; you can store Detections elsewhere and return them all in DemoTickEvent::finish() if you want, but make sure all the Detection objects you want to return are returned before the program terminates. This is a good pattern for aggregate detection methods e.g. crit hack detection.
+
+If you don't have any detections to return, just return the empty vector.
