@@ -165,6 +165,10 @@ fn main() -> Result<(), Error> {
 }
 
 pub trait DemoTickEvent<'a> {
+    fn default(&self) -> bool {
+        panic!("default() not set for {}", std::any::type_name::<Self>());
+    }
+
     fn algorithm_name(&self) -> &str {
         panic!("algorithm_name() not implemented for {}", std::any::type_name::<Self>());
     }

@@ -58,6 +58,10 @@ impl<'a> WriteToFile<'a> {
 }
 
 impl<'a> DemoTickEvent<'a> for WriteToFile<'a> {
+    fn default(&self) -> bool {
+        false
+    }
+
     fn algorithm_name(&self) -> &str {
         "write_to_file"
     }

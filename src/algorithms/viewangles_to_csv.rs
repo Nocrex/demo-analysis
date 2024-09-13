@@ -48,6 +48,10 @@ impl ViewAnglesToCSV {
 }
 
 impl<'a> DemoTickEvent<'a> for ViewAnglesToCSV {
+    fn default(&self) -> bool {
+        false
+    }
+
     fn algorithm_name(&self) -> &str {
         "viewangles_to_csv"
     }
