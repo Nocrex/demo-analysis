@@ -7,12 +7,14 @@ pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Strea
 use crate::{dev_print, DemoTickEvent, Detection};
 
 pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnalyser>, mut events: Vec<Box<dyn DemoTickEvent + 'a>>) -> Vec<Detection> {
-  
+
     let mut ticker_result: Result<bool, ParseError> = Ok(true);
-    let mut last_update = std::time::Instant::now();
     let mut prior_tick: u32 = 1;
     let start = std::time::Instant::now();
+
+    let mut last_update = std::time::Instant::now();
     let mut tps_start_window = start;
+    let mut tps_start_window_tick: Vec<u32> = vec![0];
     
     let mut detections: Vec<Detection> = Vec::new();
 
@@ -35,10 +37,14 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
         }
 
         if !crate::SILENT.load(std::sync::atomic::Ordering::Relaxed) && last_update.elapsed().as_secs() >= 1 {
-            let tps: u32 = u32::from(state.tick - (tps_start_window.elapsed().as_secs() as u32)) / tps_start_window.elapsed().as_secs() as u32;
+            let tps: u32 = u32::from(state.tick - tps_start_window_tick[0]) / tps_start_window.elapsed().as_secs() as u32;
             dev_print!("Processing tick {} ({} remaining, {} tps)", state.tick, header.ticks - u32::from(state.tick), tps);
             last_update = std::time::Instant::now();
-            tps_start_window = std::cmp::max(start, start - std::time::Duration::from_secs(30));
+            tps_start_window = std::cmp::max(start, last_update - std::time::Duration::from_secs(10));
+            tps_start_window_tick.push(u32::from(state.tick));
+            if tps_start_window_tick.len() > 10 {
+                tps_start_window_tick.remove(0);
+            }
         }
 
         let mut json = get_gamestate_json(state);
