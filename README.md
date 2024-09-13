@@ -135,7 +135,7 @@ The program accepts the following arguments:
 - `-i <path>`: Specify the path to the demo file to analyze. This argument is required.
 - `-q`: Silence all debug info, leaving only the detection output in stdout. Strongly recommended for production use.
 - `-c`: Print the number of detections instead of details for every detection. Overridden by `-q`.
-- `-a [list of algorithms to run]`: Specify the algorithms to run. If not specified, the default algorithms are run. A list of algorithms can be printed with `-h`.
+- `-a <algorithm> [-a <algorithm>]...`: Specify the algorithms to run. If not specified, the default algorithms are run.
 - `-h`: Print help information and exit.
 
 ### Writing your own algorithm

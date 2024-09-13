@@ -30,7 +30,7 @@ fn main() -> Result<(), Error> {
     let mut opts = Options::new();
     opts.optopt("i", "input", "set input file path", "PATH");
     opts.optflag("q", "quiet", "silence all output except for the final JSON string");
-    opts.optopt("a", "algorithms", "specify the algorithms to run. If not specified, the default algorithms are run.", "ALGORITHMS");
+    opts.optmulti("a", "algorithm", "specify the algorithm to run. Include multiple -a flags to run multiple algorithms. If not specified, the default algorithms are run.", "ALGORITHM [-a ALGORITHM]...");
     opts.optflag("c", "count", "only print the number of detections");
     opts.optflag("h", "help", "print this help menu");
 
@@ -79,16 +79,14 @@ fn main() -> Result<(), Error> {
         algorithms.retain(|a| specified_algorithms.contains(&a.algorithm_name().to_string()));
     }
 
-    if algorithms.is_empty() {
-        panic!("No algorithms specified");
-    }
-
     let unknown_algorithms: Vec<String> = specified_algorithms
         .into_iter()
         .filter(|a| algorithms.iter().all(|b| b.algorithm_name() != *a))
         .collect();
     if !unknown_algorithms.is_empty() {
         panic!("Unknown algorithms specified: {}", unknown_algorithms.join(", "));
+    } else if algorithms.is_empty() {
+        panic!("No algorithms specified");
     }
 
     print_metadata(&header);
