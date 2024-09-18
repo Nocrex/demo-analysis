@@ -90,7 +90,8 @@ fn modify_json(state_json: &mut Value) -> Value {
         let players = v.as_array_mut().unwrap();
         *players = players.iter().filter(|p| {
             p["in_pvs"].as_bool().unwrap() &&
-            p["state"].as_str().unwrap() == "Alive"
+            p["state"].as_str().unwrap() == "Alive" &&
+            p["info"]["steamId"].as_str().unwrap() != "BOT"
         } ).cloned().collect();
     });
 
