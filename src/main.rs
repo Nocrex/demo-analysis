@@ -106,7 +106,7 @@ fn main() -> Result<(), Error> {
     if SILENT.load(std::sync::atomic::Ordering::Relaxed) {
         println!("{}", serde_json::to_string(&detections).unwrap());
     } else if matches.opt_present("c") {
-        println!("Detection count: {}", detections.len());
+        print_detection_count(&detections);
     } else {
         println!("{}", serde_json::to_string_pretty(&detections).unwrap());
     }
@@ -160,6 +160,20 @@ fn print_metadata(header: &Header) {
     dev_print!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, header.ticks);
     dev_print!("User: {}", header.nick);
     dev_print!("Server: {}", header.server);
+}
+
+fn print_detection_count(detections: &Vec<Detection>) {
+    let mut steamid_counts: std::collections::HashMap<u64, usize> = std::collections::HashMap::new();
+    for detection in detections {
+        *steamid_counts.entry(detection.player).or_insert(0) += 1;
+    }
+    dev_print!("Detection count: {}", detections.len());
+    dev_print!("Detections by SteamID:");
+    let mut steamid_counts_vec: Vec<_> = steamid_counts.into_iter().collect();
+    steamid_counts_vec.sort_by(|a, b| b.1.cmp(&a.1));
+    for (steamid, count) in steamid_counts_vec {
+        dev_print!("  {}: {}", steamid, count);
+    }
 }
 
 #[macro_export]
