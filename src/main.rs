@@ -168,6 +168,9 @@ fn print_detection_count(detections: &Vec<Detection>) {
         *steamid_counts.entry(detection.player).or_insert(0) += 1;
     }
     dev_print!("Detection count: {}", detections.len());
+    if detections.is_empty() {
+        return;
+    }
     dev_print!("Detections by SteamID:");
     let mut steamid_counts_vec: Vec<_> = steamid_counts.into_iter().collect();
     steamid_counts_vec.sort_by(|a, b| b.1.cmp(&a.1));
