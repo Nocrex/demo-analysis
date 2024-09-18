@@ -5,7 +5,7 @@ mod algorithms {
     pub mod write_to_file;
 }
 
-use std::{borrow::BorrowMut, env, fs::{self}};
+use std::{borrow::BorrowMut, collections::HashMap, env, fs::{self}};
 use anyhow::Error;
 use serde_json::Value;
 use serde::{Deserialize, Serialize};
@@ -163,20 +163,27 @@ fn print_metadata(header: &Header) {
 }
 
 fn print_detection_count(detections: &Vec<Detection>) {
-    let mut steamid_counts: std::collections::HashMap<u64, usize> = std::collections::HashMap::new();
+    let mut algorithm_counts: HashMap<String, HashMap<u64, usize>> = HashMap::new();
     for detection in detections {
-        *steamid_counts.entry(detection.player).or_insert(0) += 1;
+        let algorithm = detection.algorithm.clone();
+        let steamid = detection.player;
+        *algorithm_counts.entry(algorithm).or_insert(HashMap::new()).entry(steamid).or_insert(0) += 1;
     }
-    dev_print!("Detection count: {}", detections.len());
+
+    dev_print!("Total detections: {}", detections.len());
     if detections.is_empty() {
         return;
     }
-    dev_print!("Detections by SteamID:");
-    let mut steamid_counts_vec: Vec<_> = steamid_counts.into_iter().collect();
-    steamid_counts_vec.sort_by(|a, b| b.1.cmp(&a.1));
-    for (steamid, count) in steamid_counts_vec {
-        dev_print!("  {}: {}", steamid, count);
+    dev_print!("Detections by Algorithm:");
+    for (algorithm, steamid_counts) in algorithm_counts {
+        dev_print!("  {}: {} players, {} detections", algorithm, steamid_counts.len(), steamid_counts.values().sum::<usize>());
+        let mut steamid_counts_vec: Vec<_> = steamid_counts.into_iter().collect();
+        steamid_counts_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        for (steamid, count) in steamid_counts_vec {
+            dev_print!("    {}: {}", steamid, count);
+        }
     }
+
 }
 
 #[macro_export]
