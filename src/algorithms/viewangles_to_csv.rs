@@ -58,7 +58,7 @@ impl<'a> DemoTickEvent<'a> for ViewAnglesToCSV {
 
     fn init(&mut self) -> Result<Vec<Detection>, Error> {
         self.init_file("./test/viewangles_to_csv.csv");
-        writeln!(self.file.as_mut().unwrap(), "tick,steam_id,origin_x,origin_y,origin_z,viewangle,pitchangle,va_delta,pa_delta").unwrap();
+        writeln!(self.file.as_mut().unwrap(), "tick,name,steam_id,origin_x,origin_y,origin_z,viewangle,pitchangle,va_delta,pa_delta").unwrap();
         Ok(vec![])
     }
 
@@ -71,6 +71,7 @@ impl<'a> DemoTickEvent<'a> for ViewAnglesToCSV {
             let e = player.as_object().unwrap();
 
             let steam_id = e["info"]["steamId"].as_str().unwrap();
+            let name = e["info"]["name"].as_str().unwrap();
             let origin_x = e["position"]["x"].as_f64().unwrap();
             let origin_y = e["position"]["y"].as_f64().unwrap();
             let origin_z = e["position"]["z"].as_f64().unwrap();
@@ -100,9 +101,22 @@ impl<'a> DemoTickEvent<'a> for ViewAnglesToCSV {
                 ))
                 .unwrap_or((f64::NAN, f64::NAN));
 
-            writeln!(self.file.as_mut().unwrap(), "{},{},{},{},{},{},{},{},{}", ticknum, steam_id, origin_x, origin_y, origin_z, viewangle, pitchangle, va_delta, pa_delta).unwrap();
+            writeln!(
+                self.file.as_mut().unwrap(),
+                "{},{},{},{},{},{},{},{},{},{}",
+                ticknum,
+                name,
+                steam_id,
+                origin_x,
+                origin_y,
+                origin_z,
+                viewangle,
+                pitchangle,
+                va_delta,
+                pa_delta
+            )
+            .unwrap();
         }
-
         self.previous = tick.clone();
 
         Ok(vec![])
