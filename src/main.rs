@@ -30,6 +30,7 @@ fn main() -> Result<(), Error> {
     let mut opts = Options::new();
     opts.optopt("i", "input", "set input file path", "PATH");
     opts.optflag("q", "quiet", "silence all output except for the final JSON string");
+    opts.optflag("p", "pretty", "same as -q, but with more human-readable json");
     opts.optmulti("a", "algorithm", "specify the algorithm to run. Include multiple -a flags to run multiple algorithms. If not specified, the default algorithms are run.", "ALGORITHM [-a ALGORITHM]...");
     opts.optflag("c", "count", "only print the number of detections");
     opts.optflag("h", "help", "print this help menu");
@@ -52,7 +53,8 @@ fn main() -> Result<(), Error> {
     }
 
     let path = matches.opt_str("i").expect("No input file path provided");
-    let silent = matches.opt_present("q");
+    let silent = matches.opt_present("q") || matches.opt_present("p");
+    let pretty = matches.opt_present("p");
     SILENT.store(silent, std::sync::atomic::Ordering::SeqCst);
 
     let file = fs::read(path)?;
@@ -103,7 +105,7 @@ fn main() -> Result<(), Error> {
     dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
 
     if SILENT.load(std::sync::atomic::Ordering::Relaxed) {
-        print_detection_json(&header, &detections, actual_ticks);
+        print_detection_json(&header, &detections, actual_ticks, pretty);
     } else if matches.opt_present("c") {
         print_detection_count(&detections);
     } else {
@@ -161,7 +163,7 @@ fn print_metadata(header: &Header, ticks: u32) {
     dev_print!("Server: {}", header.server);
 }
 
-fn print_detection_json(header: &Header, detections: &Vec<Detection>, ticks: u32) {
+fn print_detection_json(header: &Header, detections: &Vec<Detection>, ticks: u32, pretty: bool) {
     let analysis = serde_json::json!({
         "server_ip": header.server.clone(),
         "duration": ticks,
@@ -169,7 +171,12 @@ fn print_detection_json(header: &Header, detections: &Vec<Detection>, ticks: u32
         "map": header.map.clone(),
         "detections": detections
     });
-    println!("{}", serde_json::to_string_pretty(&analysis).unwrap());
+    let json = if pretty {
+        serde_json::to_string_pretty(&analysis).unwrap()
+    } else {
+        serde_json::to_string(&analysis).unwrap()
+    };
+    println!("{}", json);
 }
 
 fn print_detection_count(detections: &Vec<Detection>) {
