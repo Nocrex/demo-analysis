@@ -89,13 +89,12 @@ fn main() -> Result<(), Error> {
         panic!("No algorithms specified");
     }
 
-    print_metadata(&header);
+    print_metadata(&header, header.ticks);
 
-    let mut detections = Vec::new();
-    detections.extend(perform_tick(&header, ticker.borrow_mut(), algorithms));
+    let (detections, actual_ticks) = perform_tick(&header, ticker.borrow_mut(), algorithms);
 
     if start.elapsed().as_secs() >= 10 {
-        print_metadata(&header);
+        print_metadata(&header, actual_ticks);
     }
 
     let total_ticks = header.ticks;
@@ -104,7 +103,7 @@ fn main() -> Result<(), Error> {
     dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
 
     if SILENT.load(std::sync::atomic::Ordering::Relaxed) {
-        println!("{}", serde_json::to_string(&detections).unwrap());
+        print_detection_json(&header, &detections, actual_ticks);
     } else if matches.opt_present("c") {
         print_detection_count(&detections);
     } else {
@@ -151,15 +150,26 @@ pub struct Detection {
     pub data: Value
 }
 
-fn print_metadata(header: &Header) {
+fn print_metadata(header: &Header, ticks: u32) {
     dev_print!("Map: {}", header.map);
     let hours = (header.duration / 3600.0).floor();
     let minutes = ((header.duration % 3600.0) / 60.0).floor();
     let seconds = (header.duration % 60.0).floor();
     let milliseconds = ((header.duration % 1.0) * 100.0).floor();
-    dev_print!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, header.ticks);
+    dev_print!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, ticks);
     dev_print!("User: {}", header.nick);
     dev_print!("Server: {}", header.server);
+}
+
+fn print_detection_json(header: &Header, detections: &Vec<Detection>, ticks: u32) {
+    let analysis = serde_json::json!({
+        "server_ip": header.server.clone(),
+        "duration": ticks,
+        "author": header.nick.clone(),
+        "map": header.map.clone(),
+        "detections": detections
+    });
+    println!("{}", serde_json::to_string_pretty(&analysis).unwrap());
 }
 
 fn print_detection_count(detections: &Vec<Detection>) {

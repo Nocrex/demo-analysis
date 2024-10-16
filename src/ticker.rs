@@ -6,7 +6,8 @@ pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Strea
 
 use crate::{dev_print, DemoTickEvent, Detection};
 
-pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnalyser>, mut events: Vec<Box<dyn DemoTickEvent + 'a>>) -> Vec<Detection> {
+// We return the total number of ticks iterated through in case the header is corrupted (e.g. game crash).
+pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnalyser>, mut events: Vec<Box<dyn DemoTickEvent + 'a>>) -> (Vec<Detection>, u32) {
 
     let mut ticker_result: Result<bool, ParseError> = Ok(true);
     let mut prior_tick: u32 = 1;
@@ -72,7 +73,7 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
         let _ = event.finish();
     }
 
-    return detections;
+    return (detections, ticker.state().tick.into());
 }
 
 fn get_gamestate_json(state: &GameState) -> Value {
