@@ -114,8 +114,10 @@ The empty array at the bottom means there were no detections. If there were dete
       "pa_delta": -180.0,
       "va_delta": 49.61875915527344
     }
+  }
+]
 ```
-<p style="font-size: smaller; color: gray">These are real detections against real cheaters, but the Steam IDs have been substituted for now-deleted bot accounts.</p>
+These are real detections against real cheaters, but the Steam IDs have been substituted for now-deleted bot accounts.
 
 In production, the `-q` flag is used to silence all debug info, leaving only the detection output in stdout. 
 
@@ -133,14 +135,15 @@ The output is a json array containing serialized Detection objects. The `Detecti
 The program accepts the following arguments:
 
 - `-i <path>`: Specify the path to the demo file to analyze. This argument is required.
-- `-q`: Silence all debug info, leaving only the detection output in stdout. Strongly recommended for production use.
+- `-q`: Silence all debug info, leaving only the detection output in stdout. Required for production use.
+- `-p`: Same as `-q`, but prettifies the output. Convenient for manual inspection of the output.
 - `-c`: Print the number of detections instead of details for every detection. Overridden by `-q`.
 - `-a <algorithm> [-a <algorithm>]...`: Specify the algorithms to run. If not specified, the default algorithms are run.
 - `-h`: Print help information and exit.
 
 ### Writing your own algorithm
 
-This section describes the creation of a cheat detection algorithm. You can view the final product of this tutorial with supporting comments at `src/algorithms/viewangles_180degrees.rs`.
+This section describes the structure of a cheat detection algorithm. You can also view a complete algorithm with supporting comments at `src/algorithms/viewangles_180degrees.rs`.
 
 To write your own algorithm, you must implement the `DemoTickEvent` trait. To do this, create a new file in the `src/algorithms/` directory. For example, if you want to detect 180 degree snaps, you might create `src/algorithms/viewangles_180degrees.rs`. In this file, you can define whatever structs, types etc you need to create your algorithm. At minimum, you need to implement some of the functions in `DemoTickEvent`:
 
@@ -152,7 +155,7 @@ To write your own algorithm, you must implement the `DemoTickEvent` trait. To do
 
 The functions that return `Result<Vec<Detection>, Error>` are the entry points for your actual algorithm. Your task is to process the incoming data and produce Detection objects for each event where cheating is suspected.
 
-The incoming data is provided as a json value via `DemoTickEvent::on_tick`. To understand the structure of this object, try `cargo run --release -i "path/to/demo.dem -a write_to_file` to write all the json states to one large file. 
+The incoming data is provided as a json value via `DemoTickEvent::on_tick`. To understand the structure of this object, try `cargo run --release -i "path/to/demo.dem" -a write_to_file` to write all the json states to one large file. Each tick is written to a new line.
 
 To register a detection, include it in the vector that's returned at the end of any detection function. Detections don't have to be returned in the same function call that the relevant data is introduced; you can store Detections elsewhere and return them all in DemoTickEvent::finish() if you want, but make sure all the Detection objects you want to return are returned before the program terminates. This is a good pattern for aggregate detection methods e.g. crit hack detection.
 

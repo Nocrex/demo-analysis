@@ -6,6 +6,8 @@ use crate::{DemoTickEvent, Detection};
 // This example file looks for any examples of players rotating 180 degrees within a single server tick.
 
 // To start, define a struct containing any information you want to store/share between events.
+// Here we want to track the view angle and pitch angle of each player on the previous tick.
+// Later we will compare the previous and current view angles to see if they are 180 degrees apart.
 pub struct ViewAngles180Degrees {
     previous: Map<String, Value>,
 }
@@ -23,6 +25,8 @@ impl ViewAngles180Degrees {
         analyser
     }
 
+    // Compute the difference in viewangles. We have to account for the fact viewangles are in a circle.
+    // E.g. If viewangle goes from 350 to 10 degrees, we want to return 20 degrees.
     fn calculate_delta(&self, curr_viewangle: f64, curr_pitchangle: f64, prev_viewangle: f64, prev_pitchangle: f64, tick_delta: u64) -> (f64, f64) {
         let va_delta = {
             let diff = (curr_viewangle - prev_viewangle).rem_euclid(360.0);
@@ -38,7 +42,7 @@ impl ViewAngles180Degrees {
 }
 
 // Implement the DemoTickEvent trait. This is where the bulk of your algorithm resides.
-// Any interesting detections should be documented in a Detection instance and returned within a vector.
+// Any interesting detections should be documented in a Detection object and returned within a vector.
 // You can attach whatever json data you want to each detection via the "data" field.
 // You don't have to implement every function in DemoTickEvent; see its definition for a complete list of functions.
 
@@ -106,6 +110,10 @@ impl<'a> DemoTickEvent<'a> for ViewAngles180Degrees {
 
         self.previous = tick.clone();
 
+        // Any detections returned are official and final!
+        // If you don't want to return any detections, just return an empty vector.
+        // If your algorithm needs future ticks, you can store the detections within your algorithm's struct.
+        // You can then return them in a later DemoTickEvent::on_tick() or in DemoTickEvent::finish().
         Ok(detections)
     }
 }

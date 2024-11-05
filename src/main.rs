@@ -1,4 +1,5 @@
 pub mod ticker;
+// Import algorithm file here.
 mod algorithms {
     pub mod viewangles_180degrees;
     pub mod viewangles_to_csv;
@@ -11,6 +12,7 @@ use serde_json::Value;
 use serde::{Deserialize, Serialize};
 
 use crate::ticker::perform_tick;
+// Import algorithm struct here.
 use algorithms::{
     viewangles_180degrees::ViewAngles180Degrees, 
     viewangles_to_csv::ViewAnglesToCSV,
@@ -68,6 +70,8 @@ fn main() -> Result<(), Error> {
 
     let (header, mut ticker ) = ticker.unwrap();
 
+    // To add your algorithm, call new() on it and store inside a Box.
+    // You will need to import it at the top of the file.
     let mut algorithms: Vec<Box<dyn DemoTickEvent>> = vec![
         Box::new(ViewAngles180Degrees::new()),
         Box::new(ViewAnglesToCSV::new()),
