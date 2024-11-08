@@ -45,6 +45,22 @@ impl ViewAnglesToCSV {
         (va_delta, pa_delta)
     }
 
+    fn escape_csv_string(&self, input: &str) -> String {
+        let mut output = String::new();
+        output.push('"');
+    
+        for c in input.chars() {
+            if c == '"' {
+                output.push_str("\"\"");
+            } else {
+                output.push(c);
+            }
+        }
+    
+        output.push('"');
+        output
+    }
+
 }
 
 impl<'a> DemoTickEvent<'a> for ViewAnglesToCSV {
@@ -71,7 +87,7 @@ impl<'a> DemoTickEvent<'a> for ViewAnglesToCSV {
             let e = player.as_object().unwrap();
 
             let steam_id = e["info"]["steamId"].as_str().unwrap();
-            let name = e["info"]["name"].as_str().unwrap();
+            let name = self.escape_csv_string(e["info"]["name"].as_str().unwrap());
             let origin_x = e["position"]["x"].as_f64().unwrap();
             let origin_y = e["position"]["y"].as_f64().unwrap();
             let origin_z = e["position"]["z"].as_f64().unwrap();
