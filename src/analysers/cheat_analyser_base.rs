@@ -331,9 +331,9 @@ impl MessageHandler for CheatAnalyser {
                 }
             }
             Message::GameEvent(GameEventMessage { event, .. }) => match event {
-                GameEvent::PlayerDeath(death) => {
-                    self.state.kills.push(Kill::new(self.tick, death.as_ref()))
-                }
+                // GameEvent::PlayerDeath(death) => {
+                //     self.state.kills.push(Kill::new(self.tick, death.as_ref()))
+                // }
                 GameEvent::RoundStart(_) => {
                     self.state.buildings.clear();
                 }

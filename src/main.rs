@@ -111,7 +111,7 @@ fn main() -> Result<(), Error> {
         print_metadata(&header, actual_ticks);
     }
 
-    let total_ticks = header.ticks;
+    let total_ticks = actual_ticks;
     let total_time = start.elapsed().as_secs_f64();
     let total_tps = (total_ticks as f64) / total_time;
     dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
