@@ -1,4 +1,3 @@
-pub mod ticker;
 // Import algorithm file here.
 mod algorithms {
     pub mod viewangles_180degrees;
@@ -6,12 +5,20 @@ mod algorithms {
     pub mod write_to_file;
 }
 
+mod analysers {
+    pub mod cheat_analyser_base;
+}
+
+mod tickers {
+    pub mod ticker_base;
+}
+
 use std::{borrow::BorrowMut, collections::HashMap, env, fs::{self}};
 use anyhow::Error;
 use serde_json::Value;
 use serde::{Deserialize, Serialize};
 
-use crate::ticker::perform_tick;
+use crate::tickers::ticker_base::perform_tick;
 // Import algorithm struct here.
 use algorithms::{
     viewangles_180degrees::ViewAngles180Degrees, 
@@ -19,7 +26,8 @@ use algorithms::{
     write_to_file::WriteToFile
 };
 
-use tf_demo_parser::demo::{header::Header, parser::gamestateanalyser::GameStateAnalyser};
+use tf_demo_parser::demo::header::Header;
+use crate::analysers::cheat_analyser_base::CheatAnalyser;
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
 
 pub static SILENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -61,7 +69,7 @@ fn main() -> Result<(), Error> {
 
     let file = fs::read(path)?;
     let demo: Demo = Demo::new(&file);
-    let parser = DemoParser::new_with_analyser(demo.get_stream(), GameStateAnalyser::new());
+    let parser = DemoParser::new_with_analyser(demo.get_stream(), CheatAnalyser::new());
     let ticker = parser.ticker();
 
     if ticker.is_err() {

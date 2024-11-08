@@ -1,13 +1,14 @@
 use serde_json::Value;
 
 use tf_demo_parser::demo::header::Header;
-use tf_demo_parser::demo::parser::{gamestateanalyser::{GameState, GameStateAnalyser}, DemoTicker};
-pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
+use tf_demo_parser::demo::parser::DemoTicker;
+pub use tf_demo_parser::ParseError;
 
+use crate::analysers::cheat_analyser_base::{CheatAnalyser, CheatAnalyserState};
 use crate::{dev_print, DemoTickEvent, Detection};
 
 // We return the total number of ticks iterated through in case the header is corrupted (e.g. game crash).
-pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnalyser>, mut events: Vec<Box<dyn DemoTickEvent + 'a>>) -> (Vec<Detection>, u32) {
+pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<CheatAnalyser>, mut events: Vec<Box<dyn DemoTickEvent + 'a>>) -> (Vec<Detection>, u32) {
 
     let mut ticker_result: Result<bool, ParseError> = Ok(true);
     let mut prior_tick: u32 = 1;
@@ -28,9 +29,9 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
 
     while ticker_result.is_ok_and(|b| b) { 
 
-        // Get the GameState from the parser
+        // Get the CheatAnalyserState from the parser
 
-        let state: &GameState = ticker.state();
+        let state: &CheatAnalyserState = ticker.state();
 
         if state.tick == prior_tick {
             ticker_result = ticker.tick();
@@ -76,7 +77,7 @@ pub fn perform_tick<'a> (header: &Header, ticker: &mut DemoTicker<GameStateAnaly
     return (detections, ticker.state().tick.into());
 }
 
-fn get_gamestate_json(state: &GameState) -> Value {
+fn get_gamestate_json(state: &CheatAnalyserState) -> Value {
     serde_json::to_value(state).unwrap()
 }
 
