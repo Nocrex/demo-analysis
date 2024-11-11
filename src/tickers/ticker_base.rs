@@ -84,10 +84,6 @@ fn get_gamestate_json(state: &CheatAnalyserState) -> Value {
 fn modify_json(state_json: &mut Value) -> Value {
     let json_object = state_json.as_object_mut().unwrap();
 
-    // Remove kills as it is cumulative (only need latest value)
-    // TODO: remove this once the parser is updated to not cumulate kill events
-    json_object.remove("kills");
-
     json_object.entry("players".to_string()).and_modify(|v| {
         let players = v.as_array_mut().unwrap();
         *players = players.iter().filter(|p| {

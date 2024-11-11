@@ -4,7 +4,7 @@
 // without creating an entirely separate analyser.
 
 use tf_demo_parser::demo::data::DemoTick;
-use tf_demo_parser::demo::gameevent_gen::{ObjectDestroyedEvent, PlayerDeathEvent};
+use tf_demo_parser::demo::gameevent_gen::{ObjectDestroyedEvent, PlayerDeathEvent, PlayerShootEvent};
 use tf_demo_parser::demo::gamevent::GameEvent;
 use tf_demo_parser::demo::message::gameevent::GameEventMessage;
 use tf_demo_parser::demo::message::packetentities::{EntityId, PacketEntity, UpdateType};
@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::str::FromStr;
+
 
 pub struct CachedEntities {}
 
@@ -62,6 +63,7 @@ pub struct Player {
     pub simtime: u16,
     pub ping: u16,
     pub in_pvs: bool,
+    pub shot_fired: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -333,6 +335,19 @@ impl MessageHandler for CheatAnalyser {
             Message::GameEvent(GameEventMessage { event, .. }) => match event {
                 // GameEvent::PlayerDeath(death) => {
                 //     self.state.kills.push(Kill::new(self.tick, death.as_ref()))
+                // }
+                // TODO: Wait for https://github.com/demostf/parser/issues/25 to be resolved
+                // GameEvent::PlayerShoot(_) => {
+                //     println!("player shoot event");
+                //     // let player = self.state.players.iter_mut().find(|p|{
+                //     //     p.info.as_ref().is_some_and(|info| {
+                //     //         println!("{} == {}", info.user_id, user_id);
+                //     //         info.user_id == *user_id
+                //     //     })
+                //     // });
+                //     // if let Some(player) = player {
+                //     //     player.shot_fired = u32::from(_tick);
+                //     // }
                 // }
                 GameEvent::RoundStart(_) => {
                     self.state.buildings.clear();
