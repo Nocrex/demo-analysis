@@ -1,5 +1,5 @@
-// This file is a modified version of DemoHandler.
-// https://github.com/demostf/parser/blob/master/src/demo/parser/gamestateanalyser.rs
+// This file is a modified version of DemoHandler that leverages the tf_demo_parser crate where possible.
+// https://github.com/demostf/parser/blob/master/src/demo/parser/mod.rs
 // This version makes CheatDemoHandler::analyser public (that's literally it)
 
 use tf_demo_parser::demo::message::Message;

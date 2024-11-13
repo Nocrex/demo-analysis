@@ -1,7 +1,8 @@
 // This file is a modified version of GameStateAnalyser.
 // https://github.com/demostf/parser/blob/master/src/demo/parser/gamestateanalyser.rs
-// This version adds support for sub analysers that can be used to extend functionality as needed
+// TODO: This version will add support for sub analysers that can be used to extend functionality as needed
 // without creating an entirely separate analyser.
+// Additional functionality that has broad utility can be merged into this base analyser.
 
 use anyhow::Error;
 use serde_json::Value;
