@@ -3,7 +3,7 @@ use std::io::Write;
 
 use anyhow::Error;
 use serde_json::{Map, Value};
-use crate::{DemoTickEvent, Detection};
+use crate::{CheatAlgorithm, Detection};
 
 pub struct ViewAnglesToCSV {
     file: Option<File>,
@@ -63,7 +63,7 @@ impl ViewAnglesToCSV {
 
 }
 
-impl<'a> DemoTickEvent<'a> for ViewAnglesToCSV {
+impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
     fn default(&self) -> bool {
         false
     }
@@ -72,10 +72,10 @@ impl<'a> DemoTickEvent<'a> for ViewAnglesToCSV {
         "viewangles_to_csv"
     }
 
-    fn init(&mut self) -> Result<Vec<Detection>, Error> {
+    fn init(&mut self) -> Result<(), Error> {
         self.init_file("./test/viewangles_to_csv.csv");
         writeln!(self.file.as_mut().unwrap(), "tick,name,steam_id,origin_x,origin_y,origin_z,viewangle,pitchangle,va_delta,pa_delta").unwrap();
-        Ok(vec![])
+        Ok(())
     }
 
     fn on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error> {

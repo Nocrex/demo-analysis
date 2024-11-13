@@ -1,7 +1,7 @@
 use anyhow::Error;
 use serde_json::{json, Map, Value};
 use steamid_ng::SteamID;
-use crate::{DemoTickEvent, Detection};
+use crate::{CheatAlgorithm, Detection};
 
 // This example file looks for any examples of players rotating 180 degrees within a single server tick.
 
@@ -14,7 +14,7 @@ pub struct ViewAngles180Degrees {
 
 // Then implement a pub fn new for your struct.
 // Use the new() function to initalize any variables specified in the struct.
-// IMPORTANT: new() gets called even if the algorithm is not selected! Don't do any non-ephemeral operations here; use DemoTickEvent::init() instead.
+// IMPORTANT: new() gets called even if the algorithm is not selected! Don't do any non-ephemeral operations here; use CheatAlgorithm::init() instead.
 // Additional helper functions and consts also go here.
 
 impl ViewAngles180Degrees {
@@ -41,12 +41,12 @@ impl ViewAngles180Degrees {
     }
 }
 
-// Implement the DemoTickEvent trait. This is where the bulk of your algorithm resides.
+// Implement the CheatAlgorithm trait. This is where the bulk of your algorithm resides.
 // Any interesting detections should be documented in a Detection object and returned within a vector.
 // You can attach whatever json data you want to each detection via the "data" field.
-// You don't have to implement every function in DemoTickEvent; see its definition for a complete list of functions.
+// You don't have to implement every function in CheatAlgorithm; see its definition for a complete list of functions.
 
-impl<'a> DemoTickEvent<'a> for ViewAngles180Degrees {
+impl<'a> CheatAlgorithm<'a> for ViewAngles180Degrees {
     // REQUIRED: Should this algorithm run by default if -a isn't specified?
     // Generally should be true, unless you're doing dev-only stuff (writing to files, printing debug output, etc).
     fn default(&self) -> bool {
@@ -113,7 +113,7 @@ impl<'a> DemoTickEvent<'a> for ViewAngles180Degrees {
         // Any detections returned are official and final!
         // If you don't want to return any detections, just return an empty vector.
         // If your algorithm needs future ticks, you can store the detections within your algorithm's struct.
-        // You can then return them in a later DemoTickEvent::on_tick() or in DemoTickEvent::finish().
+        // You can then return them in a later CheatAlgorithm::on_tick() or in CheatAlgorithm::finish().
         Ok(detections)
     }
 }

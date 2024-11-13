@@ -3,20 +3,18 @@ use std::io::Write;
 
 use anyhow::Error;
 use serde_json::Value;
-use tf_demo_parser::demo::header::Header;
 
-use crate::{DemoTickEvent, Detection};
+use crate::{CheatAlgorithm, Detection};
 
 // header is not needed for this algorithm, but is included to serve as an example of how to handle the lifetimes.
 #[allow(dead_code)]
-pub struct WriteToFile<'a> {
+pub struct WriteToFile {
     state_history: Vec<Value>,
     file: Option<File>,
     first_write: bool,
-    header: &'a Header
 }
 
-impl<'a> WriteToFile<'a> {
+impl WriteToFile {
     const MAX_STATES_IN_MEMORY: usize = 1024;
 
     fn write_states_to_file(&mut self) {
@@ -47,17 +45,16 @@ impl<'a> WriteToFile<'a> {
         });
     }
 
-    pub fn new (header: &'a Header) -> WriteToFile<'a> {
+    pub fn new () -> WriteToFile {
         WriteToFile {
             state_history: Vec::new(),
             file: None,
             first_write: true,
-            header
         }
     }
 }
 
-impl<'a> DemoTickEvent<'a> for WriteToFile<'a> {
+impl CheatAlgorithm<'_> for WriteToFile {
     fn default(&self) -> bool {
         false
     }
@@ -66,12 +63,12 @@ impl<'a> DemoTickEvent<'a> for WriteToFile<'a> {
         "write_to_file"
     }
 
-    fn init(&mut self) -> Result<Vec<Detection>, Error> {
+    fn init(&mut self) -> Result<(), Error> {
         self.init_file("./test/write_to_file.json");
 
         writeln!(self.file.as_mut().unwrap(), "[").unwrap();
 
-        Ok(vec![])
+        Ok(())
     }
     
     fn on_tick(&mut self, state: Value) -> Result<Vec<Detection>, Error> {

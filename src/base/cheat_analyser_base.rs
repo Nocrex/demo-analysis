@@ -3,9 +3,12 @@
 // This version adds support for sub analysers that can be used to extend functionality as needed
 // without creating an entirely separate analyser.
 
+use anyhow::Error;
+use serde_json::Value;
 use tf_demo_parser::demo::data::DemoTick;
-use tf_demo_parser::demo::gameevent_gen::{ObjectDestroyedEvent, PlayerDeathEvent, PlayerShootEvent};
+use tf_demo_parser::demo::gameevent_gen::{ObjectDestroyedEvent, PlayerDeathEvent};
 use tf_demo_parser::demo::gamevent::GameEvent;
+use tf_demo_parser::demo::header::Header;
 use tf_demo_parser::demo::message::gameevent::GameEventMessage;
 use tf_demo_parser::demo::message::packetentities::{EntityId, PacketEntity, UpdateType};
 use tf_demo_parser::demo::message::Message;
@@ -20,9 +23,12 @@ use tf_demo_parser::demo::sendprop::{SendProp, SendPropIdentifier, SendPropValue
 use tf_demo_parser::demo::vector::{Vector, VectorXY};
 use tf_demo_parser::{MessageType, ParserState, ReadResult, Stream};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryFrom;
 use std::str::FromStr;
+use std::time::Instant;
+
+use crate::{dev_print, CheatAlgorithm, Detection};
 
 
 pub struct CachedEntities {}
@@ -265,7 +271,7 @@ pub struct CheatAnalyserState {
     pub players: Vec<Player>,
     pub buildings: BTreeMap<EntityId, Building>,
     pub world: Option<World>,
-    pub kills: Vec<Kill>,
+    // pub kills: Vec<Kill>,
     pub tick: DemoTick,
 }
 
@@ -307,22 +313,45 @@ impl CheatAnalyserState {
     }
 }
 
-#[derive(Default, Debug)]
-pub struct CheatAnalyser {
+pub struct CheatAnalyser<'a> {
     pub state: CheatAnalyserState,
-    // TODO: pub sub_analysers: Vec<SubAnalyser>,
-    tick: DemoTick,
+    pub algorithms: Vec<Box<dyn CheatAlgorithm<'a> + 'a>>,
+    pub detections: Vec<Detection>,
+    pub header: Option<Header>,
+    pub tick: DemoTick,
+    last_progress_update_time: Instant,
+    progress: Vec<u32>,
     class_names: Vec<ServerClassName>, // indexed by ClassId
 }
 
-impl MessageHandler for CheatAnalyser {
+impl<'a> Default for CheatAnalyser<'a> {
+    fn default() -> Self {
+        Self {
+            state: Default::default(),
+            algorithms: Default::default(),
+            detections: Default::default(),
+            header: Default::default(),
+            tick: Default::default(),
+            last_progress_update_time: Instant::now(),
+            progress: Default::default(),
+            class_names: Default::default(),
+        }
+    }
+}
+
+impl MessageHandler for CheatAnalyser<'_> {
     type Output = CheatAnalyserState;
 
     fn does_handle(message_type: MessageType) -> bool {
         matches!(
             message_type,
-            MessageType::PacketEntities | MessageType::GameEvent
+            MessageType::PacketEntities | MessageType::GameEvent | MessageType::NetTick
         )
+    }
+
+    fn handle_header(&mut self, _header: &tf_demo_parser::demo::header::Header) {
+        self.header = Some(_header.clone());
+        self.print_metadata();
     }
 
     fn handle_message(&mut self, message: &Message, _tick: DemoTick, parser_state: &ParserState) {
@@ -331,6 +360,17 @@ impl MessageHandler for CheatAnalyser {
                 for entity in &message.entities {
                     self.handle_entity(entity, parser_state);
                 }
+            }
+            Message::NetTick(msg) => {
+                self.check_progress();
+                let mut state_json= self.get_gamestate_json();
+                let state_json = CheatAnalyser::modify_json(&mut state_json);
+                for algorithm in &mut self.algorithms {
+                    let _ = algorithm.on_tick(state_json.clone());
+                }
+            }
+            Message::TempEntities(_) => {
+                // println!("{}: {:#?}", _tick, message);
             }
             Message::GameEvent(GameEventMessage { event, .. }) => match event {
                 // GameEvent::PlayerDeath(death) => {
@@ -408,15 +448,158 @@ impl MessageHandler for CheatAnalyser {
     }
 }
 
-impl BorrowMessageHandler for CheatAnalyser {
+impl BorrowMessageHandler for CheatAnalyser<'_> {
     fn borrow_output(&self, _state: &ParserState) -> &Self::Output {
         &self.state
     }
 }
 
-impl CheatAnalyser {
-    pub fn new() -> Self {
-        Self::default()
+impl<'a> CheatAnalyser<'a> {
+    pub fn new(algorithms: Vec<Box<dyn CheatAlgorithm<'a> + 'a>>) -> Self {
+        Self {
+            state: Default::default(),
+            algorithms,
+            detections: Vec::new(),
+            header: None,
+            tick: DemoTick::default(),
+            last_progress_update_time: Instant::now(),
+            progress: vec![],
+            class_names: Vec::new(),
+        }
+    }
+
+    pub fn init(&mut self) -> Result<(), Error> {
+        for algorithm in &mut self.algorithms {
+            match algorithm.init() {
+                Ok(_) => {},
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(())
+    }
+
+    pub fn finish(&mut self) -> Result<Vec<Detection>, Error> {
+        let mut final_detections = Vec::new();
+        for algorithm in &mut self.algorithms {
+            match algorithm.finish() {
+                Ok(detections) => final_detections.extend(detections),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(final_detections)
+    }
+
+    pub fn print_metadata(&self) {
+        if self.header.is_none() {
+            return;
+        }
+        let header = self.header.as_ref().unwrap();
+        let ticks = self.get_tick_count_u32();
+
+        dev_print!("Map: {}", header.map);
+        let hours = (header.duration / 3600.0).floor();
+        let minutes = ((header.duration % 3600.0) / 60.0).floor();
+        let seconds = (header.duration % 60.0).floor();
+        let milliseconds = ((header.duration % 1.0) * 100.0).floor();
+        dev_print!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, ticks);
+        dev_print!("User: {}", header.nick);
+        dev_print!("Server: {}", header.server);
+    }
+
+    pub fn print_detection_json(&self, pretty: bool) {
+        let analysis = serde_json::json!({
+            "server_ip": self.header.as_ref().map_or("unknown".to_string(), |h| h.server.clone()),
+            "duration": self.tick,
+            "author": self.header.as_ref().map_or("unknown".to_string(), |h| h.nick.clone()),
+            "map": self.header.as_ref().map_or("unknown".to_string(), |h| h.map.clone()),
+            "detections": self.detections
+        });
+        let json = if pretty {
+            serde_json::to_string_pretty(&analysis).unwrap()
+        } else {
+            serde_json::to_string(&analysis).unwrap()
+        };
+        println!("{}", json);
+    }
+
+    pub fn print_detection_summary(&self) {
+        let mut algorithm_counts: HashMap<String, HashMap<u64, usize>> = HashMap::new();
+        for detection in &self.detections {
+            let algorithm = detection.algorithm.clone();
+            let steamid = detection.player;
+            *algorithm_counts.entry(algorithm).or_insert(HashMap::new()).entry(steamid).or_insert(0) += 1;
+        }
+    
+        dev_print!("Total detections: {}", self.detections.len());
+        if self.detections.is_empty() {
+            return;
+        }
+        dev_print!("Detections by Algorithm:");
+        for (algorithm, steamid_counts) in algorithm_counts {
+            dev_print!("  {}: {} players, {} detections", algorithm, steamid_counts.len(), steamid_counts.values().sum::<usize>());
+            let mut steamid_counts_vec: Vec<_> = steamid_counts.into_iter().collect();
+            steamid_counts_vec.sort_by(|a, b| b.1.cmp(&a.1));
+            for (steamid, count) in steamid_counts_vec {
+                dev_print!("    {}: {}", steamid, count);
+            }
+        }
+    }
+    // This code doesn't include the very first interval in any averages.
+    // I didn't intend for that but it makes sense to exclude the intitial interval since
+    // there tends to be a lot of boiler plate stuff which throws off the average anyway.
+    fn check_progress(&mut self) {
+        const PROGRESS_UPDATE_INTERVAL_MS: u128 = 1000;
+        const TPS_ROLLING_AVERAGE_WINDOW: u32 = 10;
+        if self.last_progress_update_time.elapsed().as_millis() < PROGRESS_UPDATE_INTERVAL_MS {
+            return;
+        }
+        let tick: u32 = self.tick.into();
+
+        self.last_progress_update_time = Instant::now();
+        self.progress.push(tick);
+        while self.progress.len() > TPS_ROLLING_AVERAGE_WINDOW.try_into().unwrap() {
+            self.progress.remove(0);
+        }
+
+        let tps = if self.progress.len() >= 2 {
+            let tps = (self.progress.last().unwrap() - self.progress.first().unwrap()) as f64 / (self.progress.len() as f64 - 1.0);
+            tps * PROGRESS_UPDATE_INTERVAL_MS as f64 / 1000.0
+        } else {
+            tick.into()
+        };
+
+        dev_print!("Processing tick {} ({} remaining, {:.0} tps)", tick, self.get_tick_count_u32() - tick, tps);
+    }
+
+    pub fn get_tick_count_u32(&self) -> u32 {
+        if self.header.is_none() {
+            return self.tick.into();
+        }
+        let header = self.header.as_ref().unwrap();
+        if self.tick > header.ticks {
+            self.tick.into()
+        } else {
+            header.ticks
+        }
+    }
+
+    fn get_gamestate_json(&self) -> Value {
+        serde_json::to_value(&self.state).unwrap().clone()
+    }
+    
+    fn modify_json(state_json: &mut Value) -> Value {
+        let json_object = state_json.as_object_mut().unwrap();
+    
+        json_object.entry("players".to_string()).and_modify(|v| {
+            let players = v.as_array_mut().unwrap();
+            *players = players.iter().filter(|p| {
+                p["in_pvs"].as_bool().unwrap() &&
+                p["state"].as_str().unwrap() == "Alive" &&
+                p["info"]["steamId"].as_str().unwrap() != "BOT"
+            } ).cloned().collect();
+        });
+    
+        return serde_json::to_value(json_object).unwrap();
     }
 
     pub fn handle_entity(&mut self, entity: &PacketEntity, parser_state: &ParserState) {

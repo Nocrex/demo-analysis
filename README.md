@@ -145,7 +145,7 @@ The program accepts the following arguments:
 
 This section describes the structure of a cheat detection algorithm. You can also view a complete algorithm with supporting comments at `src/algorithms/viewangles_180degrees.rs`.
 
-To write your own algorithm, you must implement the `DemoTickEvent` trait. To do this, create a new file in the `src/algorithms/` directory. For example, if you want to detect 180 degree snaps, you might create `src/algorithms/viewangles_180degrees.rs`. In this file, you can define whatever structs, types etc you need to create your algorithm. At minimum, you need to implement some of the functions in `DemoTickEvent`:
+To write your own algorithm, you must implement the `CheatAlgorithm` trait. To do this, create a new file in the `src/algorithms/` directory. For example, if you want to detect 180 degree snaps, you might create `src/algorithms/viewangles_180degrees.rs`. In this file, you can define whatever structs, types etc you need to create your algorithm. At minimum, you need to implement some of the functions in `CheatAlgorithm`:
 
 - `default(&self) -> bool` (REQUIRED): Should this algorithm run by default if -a isn't specified?
 - `algorithm_name(&self) -> &str` (REQUIRED): Return your algorithm's name here. Best practice is to match the filename.
@@ -155,8 +155,8 @@ To write your own algorithm, you must implement the `DemoTickEvent` trait. To do
 
 The functions that return `Result<Vec<Detection>, Error>` are the entry points for your actual algorithm. Your task is to process the incoming data and produce Detection objects for each event where cheating is suspected.
 
-The incoming data is provided as a json value via `DemoTickEvent::on_tick`. To understand the structure of this object, try `cargo run --release -i "path/to/demo.dem" -a write_to_file` to write all the json states to one large file. Each tick is written to a new line.
+The incoming data is provided as a json value via `CheatAlgorithm::on_tick`. To understand the structure of this object, try `cargo run --release -i "path/to/demo.dem" -a write_to_file` to write all the json states to one large file. Each tick is written to a new line.
 
-To register a detection, include it in the vector that's returned at the end of any detection function. Detections don't have to be returned in the same function call that the relevant data is introduced; you can store Detections elsewhere and return them all in DemoTickEvent::finish() if you want, but make sure all the Detection objects you want to return are returned before the program terminates. This is a good pattern for aggregate detection methods e.g. crit hack detection.
+To register a detection, include it in the vector that's returned at the end of any detection function. Detections don't have to be returned in the same function call that the relevant data is introduced; you can store Detections elsewhere and return them all in CheatAlgorithm::finish() if you want, but make sure all the Detection objects you want to return are returned before the program terminates. This is a good pattern for aggregate detection methods e.g. crit hack detection.
 
 If you don't have any detections to return, just return the empty vector.
