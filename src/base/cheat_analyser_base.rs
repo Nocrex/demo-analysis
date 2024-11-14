@@ -362,12 +362,15 @@ impl MessageHandler for CheatAnalyser<'_> {
                     self.handle_entity(entity, parser_state);
                 }
             }
-            Message::NetTick(msg) => {
+            Message::NetTick(_) => {
                 self.check_progress();
                 let mut state_json= self.get_gamestate_json();
                 let state_json = CheatAnalyser::modify_json(&mut state_json);
                 for algorithm in &mut self.algorithms {
-                    let _ = algorithm.on_tick(state_json.clone());
+                    match algorithm.on_tick(state_json.clone()) {
+                        Ok(detections) => self.detections.extend(detections),
+                        Err(_) => {}
+                    }
                 }
             }
             Message::TempEntities(_) => {
