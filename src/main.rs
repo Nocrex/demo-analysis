@@ -7,7 +7,6 @@ mod algorithms {
 
 mod base {
     pub mod cheat_analyser_base;
-    pub mod ticker_base;
     pub mod demo_handler_base;
 }
 
