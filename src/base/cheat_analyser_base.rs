@@ -5,6 +5,7 @@
 // Additional functionality that has broad utility can be merged into this base analyser.
 
 use anyhow::Error;
+use lazy_static::lazy_static;
 use serde_json::Value;
 use tf_demo_parser::demo::data::DemoTick;
 use tf_demo_parser::demo::gameevent_gen::{ObjectDestroyedEvent, PlayerDeathEvent};
@@ -27,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::convert::TryFrom;
 use std::str::FromStr;
+use std::sync::Mutex;
 use std::time::Instant;
 
 use crate::{dev_print, CheatAlgorithm, Detection};
@@ -314,6 +316,15 @@ impl CheatAnalyserState {
     }
 }
 
+// ParserState requires a non-self impl of does_handle so I had to create this.
+lazy_static! {
+    static ref HANDLED_MESSAGE_TYPES: Mutex<Vec<MessageType>> = Mutex::new(vec![
+        MessageType::PacketEntities,
+        MessageType::GameEvent,
+        MessageType::NetTick
+    ]);
+}
+
 pub struct CheatAnalyser<'a> {
     pub state: CheatAnalyserState,
     pub algorithms: Vec<Box<dyn CheatAlgorithm<'a> + 'a>>,
@@ -344,10 +355,7 @@ impl MessageHandler for CheatAnalyser<'_> {
     type Output = CheatAnalyserState;
 
     fn does_handle(message_type: MessageType) -> bool {
-        matches!(
-            message_type,
-            MessageType::PacketEntities | MessageType::GameEvent | MessageType::NetTick
-        )
+        HANDLED_MESSAGE_TYPES.lock().unwrap().contains(&message_type)
     }
 
     fn handle_header(&mut self, _header: &tf_demo_parser::demo::header::Header) {
@@ -460,6 +468,18 @@ impl BorrowMessageHandler for CheatAnalyser<'_> {
 
 impl<'a> CheatAnalyser<'a> {
     pub fn new(algorithms: Vec<Box<dyn CheatAlgorithm<'a> + 'a>>) -> Self {
+
+        // Figure out what message types we're going to be using.
+        let message_types: Vec<MessageType> = algorithms
+            .iter()
+            .flat_map(|a| a.handled_messages())
+            .collect();
+        HANDLED_MESSAGE_TYPES.lock().unwrap().extend(message_types);
+        HANDLED_MESSAGE_TYPES.lock().unwrap().sort_by(|a, b|{
+            format!("{:?}", a).cmp(&format!("{:?}", b))
+        });
+        HANDLED_MESSAGE_TYPES.lock().unwrap().dedup();
+
         Self {
             state: Default::default(),
             algorithms,

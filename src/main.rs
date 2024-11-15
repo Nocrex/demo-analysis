@@ -23,7 +23,7 @@ use algorithms::{
     viewangles_to_csv::ViewAnglesToCSV,
     write_to_file::WriteToFile
 };
-use tf_demo_parser::demo::{header::Header, packet, parser::{DemoTicker, RawPacketStream}};
+use tf_demo_parser::{demo::{header::Header, parser::RawPacketStream}, MessageType};
 
 use crate::base::cheat_analyser_base::CheatAnalyser;
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
@@ -134,6 +134,12 @@ pub trait CheatAlgorithm<'a> {
 
     fn algorithm_name(&self) -> &str {
         panic!("algorithm_name() not implemented for {}", std::any::type_name::<Self>());
+    }
+
+    // If your algorithm needs to handle additional message types, include them here
+    // Certain message types are always handled: see HANDLED_MESSAGE_TYPES in src/base/cheat_analyser_base.rs
+    fn handled_messages(&self) -> Vec<MessageType> {
+        vec![]
     }
 
     // Called before any other events
