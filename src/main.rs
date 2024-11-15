@@ -151,14 +151,14 @@ pub trait CheatAlgorithm<'a> {
     // Called for each tick. Contains the json state for the tick
     // Try the write_to_file algorithm to see what those states look like (there is one state per line)
     // cargo run -- -i demo.dem -a write_to_file
-    fn on_tick(&mut self, _state: Value) -> Result<Vec<Detection>, Error> {
+    fn on_tick(&mut self, _state: Value, _parser_state: &ParserState) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 
     // Called for each message received by the parser.
     // Does NOT filter out messages that are not handled by the algorithm.
     // Use a match statement to get the relevant messages, and ensure those types are in handled_messages.
-    fn on_message(&mut self, _message: &Message, _tick: DemoTick) -> Result<Vec<Detection>, Error> {
+    fn on_message(&mut self, _message: &Message, _parser_state: &ParserState, _tick: DemoTick) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 

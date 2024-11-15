@@ -1,6 +1,7 @@
 use anyhow::Error;
 use serde_json::{json, Map, Value};
 use steamid_ng::SteamID;
+use tf_demo_parser::ParserState;
 use crate::{CheatAlgorithm, Detection};
 
 // This example file looks for any examples of players rotating 180 degrees within a single server tick.
@@ -59,7 +60,7 @@ impl<'a> CheatAlgorithm<'a> for ViewAngles180Degrees {
         "viewangles_180degrees"
     }
 
-    fn on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error> {
+    fn on_tick(&mut self, tick: Value, _: &ParserState) -> Result<Vec<Detection>, Error> {
         let tick = tick.as_object().unwrap();
         let ticknum = tick["tick"].as_u64().unwrap();
         let players = tick["players"].as_array().unwrap();

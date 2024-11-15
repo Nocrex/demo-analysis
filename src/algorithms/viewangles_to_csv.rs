@@ -3,6 +3,7 @@ use std::io::Write;
 
 use anyhow::Error;
 use serde_json::{Map, Value};
+use tf_demo_parser::ParserState;
 use crate::{CheatAlgorithm, Detection};
 
 pub struct ViewAnglesToCSV {
@@ -79,7 +80,7 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
         Ok(())
     }
 
-    fn on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error> {
+    fn on_tick(&mut self, tick: Value, _: &ParserState) -> Result<Vec<Detection>, Error> {
         let tick = tick.as_object().unwrap();
         let ticknum = tick["tick"].as_u64().unwrap();
         let players = tick["players"].as_array().unwrap();

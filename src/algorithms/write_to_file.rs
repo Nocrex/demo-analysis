@@ -3,6 +3,7 @@ use std::io::Write;
 
 use anyhow::Error;
 use serde_json::Value;
+use tf_demo_parser::ParserState;
 
 use crate::{CheatAlgorithm, Detection};
 
@@ -71,7 +72,7 @@ impl CheatAlgorithm<'_> for WriteToFile {
         Ok(())
     }
     
-    fn on_tick(&mut self, state: Value) -> Result<Vec<Detection>, Error> {
+    fn on_tick(&mut self, state: Value, _: &ParserState) -> Result<Vec<Detection>, Error> {
         self.state_history.push(state);
     
         if self.state_history.len() > WriteToFile::MAX_STATES_IN_MEMORY {

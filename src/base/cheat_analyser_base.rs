@@ -375,7 +375,7 @@ impl MessageHandler for CheatAnalyser<'_> {
                 let mut state_json= self.get_gamestate_json();
                 let state_json = CheatAnalyser::modify_json(&mut state_json);
                 for algorithm in &mut self.algorithms {
-                    match algorithm.on_tick(state_json.clone()) {
+                    match algorithm.on_tick(state_json.clone(), parser_state) {
                         Ok(detections) => self.detections.extend(detections),
                         Err(_) => {}
                     }
@@ -415,7 +415,7 @@ impl MessageHandler for CheatAnalyser<'_> {
             _ => {}
         }
         for algorithm in &mut self.algorithms {
-            match algorithm.on_message(message, _tick) {
+            match algorithm.on_message(message,  &parser_state, _tick) {
                 Ok(detections) => self.detections.extend(detections),
                 Err(_) => {}
             }
