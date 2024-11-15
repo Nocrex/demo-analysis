@@ -23,7 +23,7 @@ use algorithms::{
     viewangles_to_csv::ViewAnglesToCSV,
     write_to_file::WriteToFile
 };
-use tf_demo_parser::{demo::{header::Header, parser::RawPacketStream}, MessageType};
+use tf_demo_parser::{demo::{data::DemoTick, header::Header, message::Message, parser::RawPacketStream}, MessageType};
 
 use crate::base::cheat_analyser_base::CheatAnalyser;
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
@@ -151,7 +151,14 @@ pub trait CheatAlgorithm<'a> {
     // Called for each tick. Contains the json state for the tick
     // Try the write_to_file algorithm to see what those states look like (there is one state per line)
     // cargo run -- -i demo.dem -a write_to_file
-    fn on_tick(&mut self, _tick: Value) -> Result<Vec<Detection>, Error> {
+    fn on_tick(&mut self, _state: Value) -> Result<Vec<Detection>, Error> {
+        Ok(vec![])
+    }
+
+    // Called for each message received by the parser.
+    // Does NOT filter out messages that are not handled by the algorithm.
+    // Use a match statement to get the relevant messages, and ensure those types are in handled_messages.
+    fn on_message(&mut self, _message: &Message, _tick: DemoTick) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 

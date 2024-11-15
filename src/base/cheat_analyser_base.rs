@@ -414,6 +414,12 @@ impl MessageHandler for CheatAnalyser<'_> {
             },
             _ => {}
         }
+        for algorithm in &mut self.algorithms {
+            match algorithm.on_message(message, _tick) {
+                Ok(detections) => self.detections.extend(detections),
+                Err(_) => {}
+            }
+        }
     }
 
     fn handle_string_entry(
