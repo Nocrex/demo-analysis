@@ -149,11 +149,13 @@ To write your own algorithm, you must implement the `CheatAlgorithm` trait. To d
 
 - `default(&self) -> bool` (REQUIRED): Should this algorithm run by default if -a isn't specified?
 - `algorithm_name(&self) -> &str` (REQUIRED): Return your algorithm's name here. Best practice is to match the filename.
-- `init(&mut self) -> Result<Vec<Detection>, Error>`: Called before any other events. Use this instead of your object's constructor when performing any non-ephemeral actions e.g. modifying files.
+- `handled_messages(&self) -> Vec<MessageType>`: Return any message types that your algorithm needs to parse here. You can access the message objects by implementing `on_message`.
+- `init(&mut self) -> Result<(), Error>`: Called before any other events. Use this instead of your object's constructor when performing any non-ephemeral actions e.g. modifying files.
 - `on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error>`: Called for each tick. The json state for the tick is passed in as a json Value.
+- `on_message(&mut self, _message: &Message, _tick: DemoTick) -> Result<Vec<Detection>, Error>`: Called for each message (i.e. packet) in the demo. Strongly recommended that match statements are used to filter for relevant message types. ALL parsed messages go to on_message; which messages get parsed depends on what message types are being listened for (see `handled_messages`). NetTick messages trigger on_tick and on_message in that order.
 - `finish(&mut self) -> Result<Vec<Detection>, Error>`: Called after all other events. Use for cleaning up or for aggregate analysis.
 
-The functions that return `Result<Vec<Detection>, Error>` are the entry points for your actual algorithm. Your task is to process the incoming data and produce Detection objects for each event where cheating is suspected.
+The functions that return a Result are the entry points for your actual algorithm. Your task is to process the incoming data and produce Detection objects for each event where cheating is suspected.
 
 The incoming data is provided as a json value via `CheatAlgorithm::on_tick`. To understand the structure of this object, try `cargo run --release -i "path/to/demo.dem" -a write_to_file` to write all the json states to one large file. Each tick is written to a new line.
 
