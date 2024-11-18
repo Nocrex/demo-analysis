@@ -170,7 +170,7 @@ pub trait CheatAlgorithm<'a> {
 }
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Detection {
     pub tick: u64,
     pub algorithm: String,
