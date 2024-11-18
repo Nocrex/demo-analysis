@@ -1,5 +1,6 @@
 // Import algorithm file here.
 mod algorithms {
+    pub mod all_messages;
     pub mod viewangles_180degrees;
     pub mod viewangles_to_csv;
     pub mod write_to_file;
@@ -19,9 +20,7 @@ use serde::{Deserialize, Serialize};
 
 // Import algorithm struct here.
 use algorithms::{
-    viewangles_180degrees::ViewAngles180Degrees, 
-    viewangles_to_csv::ViewAnglesToCSV,
-    write_to_file::WriteToFile
+    all_messages::AllMessages, viewangles_180degrees::ViewAngles180Degrees, viewangles_to_csv::ViewAnglesToCSV, write_to_file::WriteToFile
 };
 use tf_demo_parser::{demo::{data::DemoTick, header::Header, message::Message, parser::RawPacketStream}, MessageType};
 
@@ -68,6 +67,7 @@ fn main() -> Result<(), Error> {
     // To add your algorithm, call new() on it and store inside a Box.
     // You will need to import it at the top of the file.
     let mut algorithms: Vec<Box<dyn CheatAlgorithm>> = vec![
+        Box::new(AllMessages::new()),
         Box::new(ViewAngles180Degrees::new()),
         Box::new(ViewAnglesToCSV::new()),
         Box::new(WriteToFile::new()),
@@ -136,10 +136,11 @@ pub trait CheatAlgorithm<'a> {
         panic!("algorithm_name() not implemented for {}", std::any::type_name::<Self>());
     }
 
-    // If your algorithm needs to handle additional message types, include them here
-    // Certain message types are always handled: see HANDLED_MESSAGE_TYPES in src/base/cheat_analyser_base.rs
-    fn handled_messages(&self) -> Vec<MessageType> {
-        vec![]
+    fn does_handle(&self, message_type: MessageType) -> bool {
+        match self.handled_messages() {
+            Ok(types) => types.contains(&message_type),
+            Err(parse_all) => parse_all,
+        }
     }
 
     // Called before any other events
@@ -155,9 +156,14 @@ pub trait CheatAlgorithm<'a> {
         Ok(vec![])
     }
 
+    // If your algorithm needs to handle additional message types, return those types in a Vec.
+    // You can return Err(true) to accept all messages, or Err(false) to reject all messages.
+    fn handled_messages(&self) -> Result<Vec<MessageType>, bool> {
+        Err(false)
+    }
+
     // Called for each message received by the parser.
-    // Does NOT filter out messages that are not handled by the algorithm.
-    // Use a match statement to get the relevant messages, and ensure those types are in handled_messages.
+    // Only called for types specified in handled_messages.
     fn on_message(&mut self, _message: &Message, _parser_state: &ParserState, _tick: DemoTick) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }

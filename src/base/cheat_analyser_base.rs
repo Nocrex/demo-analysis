@@ -355,7 +355,8 @@ impl MessageHandler for CheatAnalyser<'_> {
     type Output = CheatAnalyserState;
 
     fn does_handle(message_type: MessageType) -> bool {
-        HANDLED_MESSAGE_TYPES.lock().unwrap().contains(&message_type)
+        let message_types = HANDLED_MESSAGE_TYPES.lock().unwrap();
+        message_types.is_empty() || message_types.contains(&message_type)
     }
 
     fn handle_header(&mut self, _header: &tf_demo_parser::demo::header::Header) {
@@ -415,6 +416,9 @@ impl MessageHandler for CheatAnalyser<'_> {
             _ => {}
         }
         for algorithm in &mut self.algorithms {
+            if !algorithm.does_handle(message.get_message_type()) {
+                continue;
+            }
             match algorithm.on_message(message,  &parser_state, _tick) {
                 Ok(detections) => self.detections.extend(detections),
                 Err(_) => {}
@@ -474,17 +478,28 @@ impl BorrowMessageHandler for CheatAnalyser<'_> {
 
 impl<'a> CheatAnalyser<'a> {
     pub fn new(algorithms: Vec<Box<dyn CheatAlgorithm<'a> + 'a>>) -> Self {
-
+        let mut message_types = HANDLED_MESSAGE_TYPES.lock().unwrap();
         // Figure out what message types we're going to be using.
-        let message_types: Vec<MessageType> = algorithms
-            .iter()
-            .flat_map(|a| a.handled_messages())
-            .collect();
-        HANDLED_MESSAGE_TYPES.lock().unwrap().extend(message_types);
-        HANDLED_MESSAGE_TYPES.lock().unwrap().sort_by(|a, b|{
-            format!("{:?}", a).cmp(&format!("{:?}", b))
-        });
-        HANDLED_MESSAGE_TYPES.lock().unwrap().dedup();
+        let mut specified_message_types: Vec<MessageType> = vec![];
+        for algorithm in &algorithms {
+            match algorithm.handled_messages() {
+                Ok(types) => specified_message_types.extend(types),
+                Err(true) => {
+                    // An empty HANDLED_MESSAGE_TYPES means we parse ALL messages.
+                    message_types.clear();
+                    break;
+                }
+                Err(false) => {}
+            }
+        }
+
+        if !message_types.is_empty() {
+            message_types.extend(specified_message_types);
+            message_types.sort_by(|a, b|{
+                format!("{:?}", a).cmp(&format!("{:?}", b))
+            });
+            message_types.dedup();
+        }
 
         Self {
             state: Default::default(),
