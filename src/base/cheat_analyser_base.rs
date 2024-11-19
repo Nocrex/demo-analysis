@@ -517,21 +517,20 @@ impl<'a> CheatAnalyser<'a> {
         for algorithm in &mut self.algorithms {
             match algorithm.init() {
                 Ok(_) => {},
-                Err(e) => return Err(e),
+                Err(_) => continue,
             }
         }
         Ok(())
     }
 
-    pub fn finish(&mut self) -> Result<Vec<Detection>, Error> {
-        let mut final_detections = Vec::new();
+    pub fn finish(&mut self) -> Result<(), Error> {
         for algorithm in &mut self.algorithms {
             match algorithm.finish() {
-                Ok(detections) => final_detections.extend(detections),
-                Err(e) => return Err(e),
+                Ok(detections) => self.detections.extend(detections),
+                Err(_) => continue,
             }
         }
-        Ok(final_detections)
+        Ok(())
     }
 
     pub fn print_metadata(&self) {
