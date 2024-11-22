@@ -101,7 +101,18 @@ fn main() -> Result<(), Error> {
 
     handler.handle_header(&header);
     let _ = handler.analyser.init();
-    while let Some(packet) = packets.next(&handler.state_handler)? {
+    loop {
+        let packet = packets.next(&handler.state_handler);
+        let packet = match packet {
+            Ok(packet) => match packet {
+                Some(packet) => packet,
+                None => break,
+            },
+            Err(e) => {
+                dev_print!("ParseError: {}", e);
+                continue;
+            }
+        };
         let _ = handler.handle_packet(packet)?;
     }
     let _ = handler.analyser.finish()?;
