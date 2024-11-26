@@ -7,6 +7,7 @@
 use anyhow::Error;
 use lazy_static::lazy_static;
 use serde_json::Value;
+use steamid_ng::SteamID;
 use tf_demo_parser::demo::data::DemoTick;
 use tf_demo_parser::demo::gameevent_gen::{ObjectDestroyedEvent, PlayerDeathEvent};
 use tf_demo_parser::demo::gamevent::GameEvent;
@@ -14,7 +15,7 @@ use tf_demo_parser::demo::header::Header;
 use tf_demo_parser::demo::message::gameevent::GameEventMessage;
 use tf_demo_parser::demo::message::packetentities::{EntityId, PacketEntity, UpdateType};
 use tf_demo_parser::demo::message::Message;
-use tf_demo_parser::demo::packet::datatable::{ParseSendTable, ServerClass, ServerClassName};
+use tf_demo_parser::demo::packet::datatable::{ClassId, ParseSendTable, ServerClass, ServerClassName};
 use tf_demo_parser::demo::packet::message::MessagePacketMeta;
 use tf_demo_parser::demo::packet::stringtable::StringTableEntry;
 use tf_demo_parser::demo::parser::analyser::UserInfo;
@@ -327,6 +328,8 @@ lazy_static! {
 
 pub struct CheatAnalyser<'a> {
     pub state: CheatAnalyserState,
+    pub entid_to_userid: HashMap<EntityId, UserId>,
+    pub userid_to_id64: HashMap<UserId, u64>,
     pub algorithms: Vec<Box<dyn CheatAlgorithm<'a> + 'a>>,
     pub detections: Vec<Detection>,
     pub header: Option<Header>,
@@ -340,6 +343,8 @@ impl<'a> Default for CheatAnalyser<'a> {
     fn default() -> Self {
         Self {
             state: Default::default(),
+            entid_to_userid: Default::default(),
+            userid_to_id64: Default::default(),
             algorithms: Default::default(),
             detections: Default::default(),
             header: Default::default(),
@@ -410,6 +415,14 @@ impl MessageHandler for CheatAnalyser<'_> {
                 }
                 GameEvent::ObjectDestroyed(ObjectDestroyedEvent { index, .. }) => {
                     self.state.remove_building((*index as u32).into());
+                }
+                GameEvent::PlayerConnectClient(event) => {
+                    self.entid_to_userid.insert(EntityId::from(event.index as u32), UserId::from(event.user_id));
+                    if event.network_id != "BOT".into() {
+                        let steamid = SteamID::from_steam3(event.network_id.to_string().as_str());
+                        let steamid64 = u64::from(steamid.unwrap_or(0.into()));
+                        self.userid_to_id64.insert(event.user_id.into(), steamid64);
+                    }
                 }
                 _ => {}
             },
@@ -503,6 +516,8 @@ impl<'a> CheatAnalyser<'a> {
 
         Self {
             state: Default::default(),
+            entid_to_userid: HashMap::new(),
+            userid_to_id64: HashMap::new(),
             algorithms,
             detections: Vec::new(),
             header: None,
@@ -674,6 +689,13 @@ impl<'a> CheatAnalyser<'a> {
                         .iter_mut()
                         .find(|player| player.entity == entity_id)
                     {
+                        match &player.info {
+                            Some(info) => {
+                                self.entid_to_userid
+                                    .insert(entity_id, info.user_id);
+                            },
+                            None => {},
+                        };
                         match table_name.as_str() {
                             "m_iTeam" => {
                                 player.team =
