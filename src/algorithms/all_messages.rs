@@ -7,6 +7,7 @@ use tf_demo_parser::demo::data::DemoTick;
 use tf_demo_parser::demo::message::Message;
 use tf_demo_parser::{MessageType, ParserState};
 
+use crate::base::cheat_analyser_base::CheatAnalyserState;
 use crate::{CheatAlgorithm, Detection};
 
 // header is not needed for this algorithm, but is included to serve as an example of how to handle the lifetimes.
@@ -20,10 +21,8 @@ pub struct AllMessages {
 impl AllMessages {
     const MAX_MSGS_IN_MEMORY: usize = 2048;
 
-    fn write_states_to_file(&mut self) {
-
+    fn write_messages_to_file(&mut self) {
         let out = self.msg_history.join("\n"); 
-    
         write!(self.file.as_mut().unwrap(), "{}\n", out).unwrap();
     }
 
@@ -60,11 +59,10 @@ impl CheatAlgorithm<'_> for AllMessages {
 
     fn init(&mut self) -> Result<(), Error> {
         self.init_file("./test/all_messages.txt");
-
         Ok(())
     }
     
-    fn on_message(&mut self, message: &Message, _parser_state: &ParserState, _tick: DemoTick) -> Result<Vec<Detection>, Error> {
+    fn on_message(&mut self, message: &Message, _: &CheatAnalyserState, _: &ParserState, _: DemoTick) -> Result<Vec<Detection>, Error> {
         let message = format!("{:?} {}",
             message.get_message_type(),
             serde_json::to_string_pretty(&serde_json::to_value(message).unwrap()).unwrap()
@@ -72,7 +70,7 @@ impl CheatAlgorithm<'_> for AllMessages {
         self.msg_history.push(message);
     
         if self.msg_history.len() > AllMessages::MAX_MSGS_IN_MEMORY {
-            self.write_states_to_file();
+            self.write_messages_to_file();
     
             self.msg_history.clear();
         }
@@ -87,7 +85,7 @@ impl CheatAlgorithm<'_> for AllMessages {
     fn finish(&mut self) -> Result<Vec<Detection>, Error> {
 
         if self.msg_history.len() > 0 {
-            self.write_states_to_file();
+            self.write_messages_to_file();
             self.msg_history.clear();
         }
 

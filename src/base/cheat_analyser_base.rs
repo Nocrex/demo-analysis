@@ -270,9 +270,11 @@ impl Kill {
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct CheatAnalyserState {
     pub players: Vec<Player>,
+    pub entid_to_userid: HashMap<EntityId, UserId>,
+    pub userid_to_id64: HashMap<UserId, u64>,
     pub buildings: BTreeMap<EntityId, Building>,
     pub world: Option<World>,
     // pub kills: Vec<Kill>,
@@ -302,6 +304,22 @@ impl CheatAnalyserState {
         #[allow(clippy::indexing_slicing)]
         &mut self.players[index]
     }
+    pub fn get_userid_from_entid(&self, entid: EntityId) -> Option<UserId> {
+        self.entid_to_userid.get(&entid).copied()
+    }
+
+    pub fn get_id64_from_userid(&self, userid: UserId) -> Option<u64> {
+        self.userid_to_id64.get(&userid).copied()
+    }
+
+    pub fn set_entid_to_userid(&mut self, entid: EntityId, userid: UserId) {
+        self.entid_to_userid.insert(entid, userid);
+    }
+
+    pub fn set_userid_to_id64(&mut self, userid: UserId, id64: u64) {
+        self.userid_to_id64.insert(userid, id64);
+    }
+
     pub fn get_or_create_building(
         &mut self,
         entity_id: EntityId,
@@ -328,8 +346,6 @@ lazy_static! {
 
 pub struct CheatAnalyser<'a> {
     pub state: CheatAnalyserState,
-    pub entid_to_userid: HashMap<EntityId, UserId>,
-    pub userid_to_id64: HashMap<UserId, u64>,
     pub algorithms: Vec<Box<dyn CheatAlgorithm<'a> + 'a>>,
     pub detections: Vec<Detection>,
     pub header: Option<Header>,
@@ -343,8 +359,6 @@ impl<'a> Default for CheatAnalyser<'a> {
     fn default() -> Self {
         Self {
             state: Default::default(),
-            entid_to_userid: Default::default(),
-            userid_to_id64: Default::default(),
             algorithms: Default::default(),
             detections: Default::default(),
             header: Default::default(),
@@ -378,10 +392,8 @@ impl MessageHandler for CheatAnalyser<'_> {
             }
             Message::NetTick(_) => {
                 self.check_progress();
-                let mut state_json= self.get_gamestate_json();
-                let state_json = CheatAnalyser::modify_json(&mut state_json);
                 for algorithm in &mut self.algorithms {
-                    match algorithm.on_tick(state_json.clone(), parser_state) {
+                    match algorithm.on_tick(&self.state, parser_state) {
                         Ok(detections) => self.detections.extend(detections),
                         Err(_) => {}
                     }
@@ -417,11 +429,11 @@ impl MessageHandler for CheatAnalyser<'_> {
                     self.state.remove_building((*index as u32).into());
                 }
                 GameEvent::PlayerConnectClient(event) => {
-                    self.entid_to_userid.insert(EntityId::from(event.index as u32), UserId::from(event.user_id));
+                    self.state.set_entid_to_userid(EntityId::from(event.index as u32), UserId::from(event.user_id));
                     if event.network_id != "BOT".into() {
                         let steamid = SteamID::from_steam3(event.network_id.to_string().as_str());
                         let steamid64 = u64::from(steamid.unwrap_or(0.into()));
-                        self.userid_to_id64.insert(event.user_id.into(), steamid64);
+                        self.state.set_userid_to_id64(event.user_id.into(), steamid64);
                     }
                 }
                 _ => {}
@@ -432,7 +444,7 @@ impl MessageHandler for CheatAnalyser<'_> {
             if !algorithm.does_handle(message.get_message_type()) {
                 continue;
             }
-            match algorithm.on_message(message,  &parser_state, _tick) {
+            match algorithm.on_message(message, &self.state, &parser_state, _tick) {
                 Ok(detections) => self.detections.extend(detections),
                 Err(_) => {}
             }
@@ -516,8 +528,6 @@ impl<'a> CheatAnalyser<'a> {
 
         Self {
             state: Default::default(),
-            entid_to_userid: HashMap::new(),
-            userid_to_id64: HashMap::new(),
             algorithms,
             detections: Vec::new(),
             header: None,
@@ -642,25 +652,6 @@ impl<'a> CheatAnalyser<'a> {
         }
     }
 
-    fn get_gamestate_json(&self) -> Value {
-        serde_json::to_value(&self.state).unwrap().clone()
-    }
-    
-    fn modify_json(state_json: &mut Value) -> Value {
-        let json_object = state_json.as_object_mut().unwrap();
-    
-        json_object.entry("players".to_string()).and_modify(|v| {
-            let players = v.as_array_mut().unwrap();
-            *players = players.iter().filter(|p| {
-                p["in_pvs"].as_bool().unwrap() &&
-                p["state"].as_str().unwrap() == "Alive" &&
-                p["info"]["steamId"].as_str().unwrap() != "BOT"
-            } ).cloned().collect();
-        });
-    
-        return serde_json::to_value(json_object).unwrap();
-    }
-
     pub fn handle_entity(&mut self, entity: &PacketEntity, parser_state: &ParserState) {
         let class_name: &str = self
             .class_names
@@ -683,6 +674,7 @@ impl<'a> CheatAnalyser<'a> {
             if let Some((table_name, prop_name)) = prop.identifier.names() {
                 if let Ok(player_id) = u32::from_str(prop_name.as_str()) {
                     let entity_id = EntityId::from(player_id);
+                    let mut mappings: Vec<(EntityId, UserId)> = vec![];
                     if let Some(player) = self
                         .state
                         .players
@@ -691,8 +683,7 @@ impl<'a> CheatAnalyser<'a> {
                     {
                         match &player.info {
                             Some(info) => {
-                                self.entid_to_userid
-                                    .insert(entity_id, info.user_id);
+                                mappings.push((entity_id, info.user_id));
                             },
                             None => {},
                         };
@@ -717,6 +708,9 @@ impl<'a> CheatAnalyser<'a> {
                             }
                             _ => {}
                         }
+                    }
+                    for (entity_id, user_id) in mappings {
+                        self.state.set_entid_to_userid(entity_id, user_id);
                     }
                 }
             }

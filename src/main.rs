@@ -11,16 +11,21 @@ mod base {
     pub mod demo_handler_base;
 }
 
+mod util;
+
 use std::{env, fs::{self}};
 use anyhow::Error;
-use base::demo_handler_base::CheatDemoHandler;
+use base::{cheat_analyser_base::CheatAnalyserState, demo_handler_base::CheatDemoHandler};
 use bitbuffer::BitRead;
 use serde_json::Value;
 use serde::{Deserialize, Serialize};
 
 // Import algorithm struct here.
 use algorithms::{
-    all_messages::AllMessages, viewangles_180degrees::ViewAngles180Degrees, viewangles_to_csv::ViewAnglesToCSV, write_to_file::WriteToFile
+    all_messages::AllMessages,
+    viewangles_180degrees::ViewAngles180Degrees,
+    viewangles_to_csv::ViewAnglesToCSV,
+    write_to_file::WriteToFile
 };
 use tf_demo_parser::{demo::{data::DemoTick, header::Header, message::Message, parser::RawPacketStream}, MessageType};
 
@@ -163,7 +168,7 @@ pub trait CheatAlgorithm<'a> {
     // Called for each tick. Contains the json state for the tick
     // Try the write_to_file algorithm to see what those states look like (there is one state per line)
     // cargo run -- -i demo.dem -a write_to_file
-    fn on_tick(&mut self, _state: Value, _parser_state: &ParserState) -> Result<Vec<Detection>, Error> {
+    fn on_tick(&mut self, _state: &CheatAnalyserState, _parser_state: &ParserState) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 
@@ -175,7 +180,7 @@ pub trait CheatAlgorithm<'a> {
 
     // Called for each message received by the parser.
     // Only called for types specified in handled_messages.
-    fn on_message(&mut self, _message: &Message, _parser_state: &ParserState, _tick: DemoTick) -> Result<Vec<Detection>, Error> {
+    fn on_message(&mut self, _message: &Message, _state: &CheatAnalyserState, _parser_state: &ParserState, _tick: DemoTick) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 
@@ -189,7 +194,7 @@ pub trait CheatAlgorithm<'a> {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Detection {
-    pub tick: u64,
+    pub tick: u32,
     pub algorithm: String,
     pub player: u64,
     pub data: Value
