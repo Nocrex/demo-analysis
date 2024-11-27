@@ -200,8 +200,6 @@ pub struct Detection {
     pub data: Value
 }
 
-
-
 #[macro_export]
 macro_rules! dev_print {
     ($($arg:tt)*) => {

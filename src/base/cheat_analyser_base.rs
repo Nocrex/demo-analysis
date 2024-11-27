@@ -1039,8 +1039,13 @@ impl<'a> CheatAnalyser<'a> {
         if let Some(user_info) =
             tf_demo_parser::demo::data::UserInfo::parse_from_string_table(index as u16, text, data)?
         {
-            let id = user_info.entity_id;
-            self.state.get_or_create_player(id).info = Some(user_info.into());
+            let ent_id = user_info.entity_id;
+            self.state.set_entid_to_userid(ent_id, user_info.player_info.user_id.clone());
+            match SteamID::from_steam3(&user_info.player_info.steam_id) {
+                Ok(steam_id) => self.state.set_userid_to_id64(user_info.player_info.user_id.clone(), steam_id.into()),
+                Err(_) => {},
+            }
+            self.state.get_or_create_player(ent_id).info = Some(user_info.into());
         }
 
         Ok(())
