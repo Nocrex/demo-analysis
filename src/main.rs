@@ -165,7 +165,7 @@ pub trait CheatAlgorithm<'a> {
         Ok(())
     }
 
-    // Called for each tick. Contains the json state for the tick
+    // Called for each tick. Passes the basic game state for the tick
     // Try the write_to_file algorithm to see what those states look like (there is one state per line)
     // cargo run -- -i demo.dem -a write_to_file
     fn on_tick(&mut self, _state: &CheatAnalyserState, _parser_state: &ParserState) -> Result<Vec<Detection>, Error> {

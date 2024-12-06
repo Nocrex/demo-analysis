@@ -2,7 +2,6 @@ use std::fs::{self, File};
 use std::io::Write;
 
 use anyhow::Error;
-use serde_json::Value;
 use tf_demo_parser::demo::data::DemoTick;
 use tf_demo_parser::demo::message::Message;
 use tf_demo_parser::{MessageType, ParserState};

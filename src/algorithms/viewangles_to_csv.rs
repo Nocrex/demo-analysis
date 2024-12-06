@@ -33,21 +33,7 @@ impl ViewAnglesToCSV {
             }
         });
     }
-
-    fn calculate_delta(&self, curr_viewangle: f64, curr_pitchangle: f64, prev_viewangle: f64, prev_pitchangle: f64, tick_delta: u64) -> (f64, f64) {
-        let tick_delta = if tick_delta < 1 { 1 } else { tick_delta };
-        let va_delta = {
-            let diff = (curr_viewangle - prev_viewangle).rem_euclid(360.0);
-            if diff > 180.0 {
-                diff - 360.0
-            } else {
-                diff
-            }
-        } / tick_delta as f64;
-        let pa_delta = (curr_pitchangle - prev_pitchangle) / tick_delta as f64;
-        (va_delta, pa_delta)
-    }
-
+    
     fn escape_csv_string(&self, input: &str) -> String {
         let mut output = String::new();
         output.push('"');
@@ -97,7 +83,7 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
                 None => {continue}
             };
 
-            let name = &info.name;
+            let name = self.escape_csv_string(&info.name);
             let origin_x = player.position.x;
             let origin_y = player.position.y;
             let origin_z = player.position.z;

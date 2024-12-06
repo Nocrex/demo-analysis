@@ -6,16 +6,15 @@
 
 use anyhow::Error;
 use lazy_static::lazy_static;
-use serde_json::Value;
 use steamid_ng::SteamID;
 use tf_demo_parser::demo::data::DemoTick;
-use tf_demo_parser::demo::gameevent_gen::{ObjectDestroyedEvent, PlayerDeathEvent};
+use tf_demo_parser::demo::gameevent_gen::ObjectDestroyedEvent;
 use tf_demo_parser::demo::gamevent::GameEvent;
 use tf_demo_parser::demo::header::Header;
 use tf_demo_parser::demo::message::gameevent::GameEventMessage;
 use tf_demo_parser::demo::message::packetentities::{EntityId, PacketEntity, UpdateType};
 use tf_demo_parser::demo::message::Message;
-use tf_demo_parser::demo::packet::datatable::{ClassId, ParseSendTable, ServerClass, ServerClassName};
+use tf_demo_parser::demo::packet::datatable::{ParseSendTable, ServerClass, ServerClassName};
 use tf_demo_parser::demo::packet::message::MessagePacketMeta;
 use tf_demo_parser::demo::packet::stringtable::StringTableEntry;
 use tf_demo_parser::demo::parser::analyser::UserInfo;
@@ -33,9 +32,6 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use crate::{dev_print, CheatAlgorithm, Detection};
-
-
-pub struct CachedEntities {}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub enum PlayerState {
@@ -249,26 +245,26 @@ pub struct World {
     pub boundary_max: Vector,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct Kill {
-    pub attacker_id: u16,
-    pub assister_id: u16,
-    pub victim_id: u16,
-    pub weapon: String,
-    pub tick: DemoTick,
-}
+// #[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
+// pub struct Kill {
+//     pub attacker_id: u16,
+//     pub assister_id: u16,
+//     pub victim_id: u16,
+//     pub weapon: String,
+//     pub tick: DemoTick,
+// }
 
-impl Kill {
-    fn new(tick: DemoTick, death: &PlayerDeathEvent) -> Self {
-        Kill {
-            attacker_id: death.attacker,
-            assister_id: death.assister,
-            victim_id: death.user_id,
-            weapon: death.weapon.to_string(),
-            tick,
-        }
-    }
-}
+// impl Kill {
+//     fn new(tick: DemoTick, death: &PlayerDeathEvent) -> Self {
+//         Kill {
+//             attacker_id: death.attacker,
+//             assister_id: death.assister,
+//             victim_id: death.user_id,
+//             weapon: death.weapon.to_string(),
+//             tick,
+//         }
+//     }
+// }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct CheatAnalyserState {

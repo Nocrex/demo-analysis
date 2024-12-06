@@ -2,7 +2,6 @@ use std::fs::{self, File};
 use std::io::Write;
 
 use anyhow::Error;
-use serde_json::Value;
 use tf_demo_parser::ParserState;
 
 use crate::base::cheat_analyser_base::CheatAnalyserState;
