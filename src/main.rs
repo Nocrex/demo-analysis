@@ -1,25 +1,35 @@
-pub mod ticker;
 // Import algorithm file here.
 mod algorithms {
+    pub mod all_messages;
     pub mod viewangles_180degrees;
     pub mod viewangles_to_csv;
     pub mod write_to_file;
 }
 
-use std::{borrow::BorrowMut, collections::HashMap, env, fs::{self}};
+mod base {
+    pub mod cheat_analyser_base;
+    pub mod demo_handler_base;
+}
+
+mod util;
+
+use std::{env, fs::{self}};
 use anyhow::Error;
+use base::{cheat_analyser_base::CheatAnalyserState, demo_handler_base::CheatDemoHandler};
+use bitbuffer::BitRead;
 use serde_json::Value;
 use serde::{Deserialize, Serialize};
 
-use crate::ticker::perform_tick;
 // Import algorithm struct here.
 use algorithms::{
-    viewangles_180degrees::ViewAngles180Degrees, 
+    all_messages::AllMessages,
+    viewangles_180degrees::ViewAngles180Degrees,
     viewangles_to_csv::ViewAnglesToCSV,
     write_to_file::WriteToFile
 };
+use tf_demo_parser::{demo::{data::DemoTick, header::Header, message::Message, parser::RawPacketStream}, MessageType};
 
-use tf_demo_parser::demo::{header::Header, parser::gamestateanalyser::GameStateAnalyser};
+use crate::base::cheat_analyser_base::CheatAnalyser;
 pub use tf_demo_parser::{Demo, DemoParser, Parse, ParseError, ParserState, Stream};
 
 pub static SILENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -59,23 +69,13 @@ fn main() -> Result<(), Error> {
     let pretty = matches.opt_present("p");
     SILENT.store(silent, std::sync::atomic::Ordering::SeqCst);
 
-    let file = fs::read(path)?;
-    let demo: Demo = Demo::new(&file);
-    let parser = DemoParser::new_with_analyser(demo.get_stream(), GameStateAnalyser::new());
-    let ticker = parser.ticker();
-
-    if ticker.is_err() {
-        panic!("Error creating demo ticker: {}", ticker.err().unwrap());
-    }
-
-    let (header, mut ticker ) = ticker.unwrap();
-
     // To add your algorithm, call new() on it and store inside a Box.
     // You will need to import it at the top of the file.
-    let mut algorithms: Vec<Box<dyn DemoTickEvent>> = vec![
+    let mut algorithms: Vec<Box<dyn CheatAlgorithm>> = vec![
+        Box::new(AllMessages::new()),
         Box::new(ViewAngles180Degrees::new()),
         Box::new(ViewAnglesToCSV::new()),
-        Box::new(WriteToFile::new(&header)),
+        Box::new(WriteToFile::new()),
     ];
 
     let specified_algorithms = matches.opt_strs("a");
@@ -95,31 +95,55 @@ fn main() -> Result<(), Error> {
         panic!("No algorithms specified");
     }
 
-    print_metadata(&header, header.ticks);
+    let file = fs::read(path)?;
+    let demo: Demo = Demo::new(&file);
+    let mut stream = demo.get_stream();
+    let header: Header = Header::read(&mut stream)?;
+    let mut packets = RawPacketStream::new(stream);
 
-    let (detections, actual_ticks) = perform_tick(&header, ticker.borrow_mut(), algorithms);
+    let analyser = CheatAnalyser::new(algorithms);
+    let mut handler = CheatDemoHandler::with_analyser(analyser);
+
+    handler.handle_header(&header);
+    let _ = handler.analyser.init();
+    loop {
+        let packet = packets.next(&handler.state_handler);
+        let packet = match packet {
+            Ok(packet) => match packet {
+                Some(packet) => packet,
+                None => break,
+            },
+            Err(e) => {
+                dev_print!("ParseError: {}", e);
+                continue;
+            }
+        };
+        let _ = handler.handle_packet(packet)?;
+    }
+    let _ = handler.analyser.finish()?;
 
     if start.elapsed().as_secs() >= 10 {
-        print_metadata(&header, actual_ticks);
+        handler.analyser.print_metadata();
     }
 
-    let total_ticks = header.ticks;
+    if SILENT.load(std::sync::atomic::Ordering::Relaxed) {
+        handler.analyser.print_detection_json(pretty);
+    } else if matches.opt_present("c") {
+        handler.analyser.print_detection_summary();
+    } else {
+        handler.analyser.print_detection_json(true);
+    }
+
+    let total_ticks = handler.analyser.get_tick_count_u32();
     let total_time = start.elapsed().as_secs_f64();
     let total_tps = (total_ticks as f64) / total_time;
     dev_print!("Done! (Processed {} ticks in {:.2} seconds averaging {:.2} tps)", total_ticks, total_time, total_tps);
 
-    if SILENT.load(std::sync::atomic::Ordering::Relaxed) {
-        print_detection_json(&header, &detections, actual_ticks, pretty);
-    } else if matches.opt_present("c") {
-        print_detection_count(&detections);
-    } else {
-        println!("{}", serde_json::to_string_pretty(&detections).unwrap());
-    }
-
     Ok(())
 }
 
-pub trait DemoTickEvent<'a> {
+
+pub trait CheatAlgorithm<'a> {
     fn default(&self) -> bool {
         panic!("default() not set for {}", std::any::type_name::<Self>());
     }
@@ -128,16 +152,35 @@ pub trait DemoTickEvent<'a> {
         panic!("algorithm_name() not implemented for {}", std::any::type_name::<Self>());
     }
 
+    fn does_handle(&self, message_type: MessageType) -> bool {
+        match self.handled_messages() {
+            Ok(types) => types.contains(&message_type),
+            Err(parse_all) => parse_all,
+        }
+    }
+
     // Called before any other events
     // Use this instead of ::new() when performing any non-ephemeral actions e.g. modifying files
-    fn init(&mut self) -> Result<Vec<Detection>, Error> {
+    fn init(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+
+    // Called for each tick. Passes the basic game state for the tick
+    // Try the write_to_file algorithm to see what those states look like (there is one state per line)
+    // cargo run -- -i demo.dem -a write_to_file
+    fn on_tick(&mut self, _state: &CheatAnalyserState, _parser_state: &ParserState) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 
-    // Called for each tick. Contains the json state for the tick
-    // Try the write_to_file algorithm to see what those states look like (there is one state per line)
-    // cargo run -- -i demo.dem -a write_to_file
-    fn on_tick(&mut self, _tick: Value) -> Result<Vec<Detection>, Error> {
+    // If your algorithm needs to handle additional message types, return those types in a Vec.
+    // You can return Err(true) to accept all messages, or Err(false) to reject all messages.
+    fn handled_messages(&self) -> Result<Vec<MessageType>, bool> {
+        Err(false)
+    }
+
+    // Called for each message received by the parser.
+    // Only called for types specified in handled_messages.
+    fn on_message(&mut self, _message: &Message, _state: &CheatAnalyserState, _parser_state: &ParserState, _tick: DemoTick) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
 
@@ -148,63 +191,13 @@ pub trait DemoTickEvent<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Detection {
-    pub tick: u64,
+    pub tick: u32,
     pub algorithm: String,
     pub player: u64,
     pub data: Value
-}
-
-fn print_metadata(header: &Header, ticks: u32) {
-    dev_print!("Map: {}", header.map);
-    let hours = (header.duration / 3600.0).floor();
-    let minutes = ((header.duration % 3600.0) / 60.0).floor();
-    let seconds = (header.duration % 60.0).floor();
-    let milliseconds = ((header.duration % 1.0) * 100.0).floor();
-    dev_print!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, ticks);
-    dev_print!("User: {}", header.nick);
-    dev_print!("Server: {}", header.server);
-}
-
-fn print_detection_json(header: &Header, detections: &Vec<Detection>, ticks: u32, pretty: bool) {
-    let analysis = serde_json::json!({
-        "server_ip": header.server.clone(),
-        "duration": ticks,
-        "author": header.nick.clone(),
-        "map": header.map.clone(),
-        "detections": detections
-    });
-    let json = if pretty {
-        serde_json::to_string_pretty(&analysis).unwrap()
-    } else {
-        serde_json::to_string(&analysis).unwrap()
-    };
-    println!("{}", json);
-}
-
-fn print_detection_count(detections: &Vec<Detection>) {
-    let mut algorithm_counts: HashMap<String, HashMap<u64, usize>> = HashMap::new();
-    for detection in detections {
-        let algorithm = detection.algorithm.clone();
-        let steamid = detection.player;
-        *algorithm_counts.entry(algorithm).or_insert(HashMap::new()).entry(steamid).or_insert(0) += 1;
-    }
-
-    dev_print!("Total detections: {}", detections.len());
-    if detections.is_empty() {
-        return;
-    }
-    dev_print!("Detections by Algorithm:");
-    for (algorithm, steamid_counts) in algorithm_counts {
-        dev_print!("  {}: {} players, {} detections", algorithm, steamid_counts.len(), steamid_counts.values().sum::<usize>());
-        let mut steamid_counts_vec: Vec<_> = steamid_counts.into_iter().collect();
-        steamid_counts_vec.sort_by(|a, b| b.1.cmp(&a.1));
-        for (steamid, count) in steamid_counts_vec {
-            dev_print!("    {}: {}", steamid, count);
-        }
-    }
-
 }
 
 #[macro_export]
