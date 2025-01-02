@@ -69,7 +69,7 @@ pub struct Player {
     pub simtime: u16,
     pub ping: u16,
     pub in_pvs: bool,
-    pub shot_fired: u32,
+    // pub shot_fired: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
