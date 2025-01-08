@@ -10,13 +10,17 @@ use crate::{CheatAlgorithm, Detection};
 pub struct ViewAnglesToCSV {
     file: Option<File>,
     previous: Option<CheatAnalyserState>,
+    buffer: Vec<String>,
 }
 
 impl ViewAnglesToCSV {
+    const MAX_STATES_IN_MEMORY: usize = 1024;
+
     pub fn new() -> Self {
         let writer: ViewAnglesToCSV = ViewAnglesToCSV { 
             file: None,
             previous: None,
+            buffer: Vec::with_capacity(Self::MAX_STATES_IN_MEMORY)
         };
         writer
     }
@@ -114,21 +118,26 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
                     }
                 });
                 
-            writeln!(
-                self.file.as_mut().unwrap(),
-                "{},{},{},{},{},{},{},{},{},{}",
-                ticknum,
-                name,
-                steam_id,
-                origin_x,
-                origin_y,
-                origin_z,
-                viewangle,
-                pitchangle,
-                va_delta,
-                pa_delta
-            )
-            .unwrap();
+            self.buffer.push(
+                format!(
+                    "{},{},{},{},{},{},{},{},{},{}",
+                    ticknum,
+                    name,
+                    steam_id,
+                    origin_x,
+                    origin_y,
+                    origin_z,
+                    viewangle,
+                    pitchangle,
+                    va_delta,
+                    pa_delta
+                )
+            );
+
+            if self.buffer.len() >= Self::MAX_STATES_IN_MEMORY {
+                writeln!(self.file.as_mut().unwrap(), "{}", self.buffer.join("\n")).unwrap();
+                self.buffer.clear();
+            }
         }
         self.previous = Some(state.clone());
 

@@ -49,7 +49,7 @@ impl WriteToFile {
 
     pub fn new () -> WriteToFile {
         WriteToFile {
-            state_history: Vec::new(),
+            state_history: Vec::with_capacity(Self::MAX_STATES_IN_MEMORY),
             file: None,
             first_write: true,
         }
