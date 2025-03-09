@@ -54,6 +54,13 @@ impl ViewAnglesToCSV {
         output
     }
 
+    fn flush_buffer(&mut self) {
+        if !self.buffer.is_empty() {
+            writeln!(self.file.as_mut().unwrap(), "{}", self.buffer.join("\n")).unwrap();
+            self.buffer.clear();
+        }
+    }
+
 }
 
 impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
@@ -135,12 +142,16 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
             );
 
             if self.buffer.len() >= Self::MAX_STATES_IN_MEMORY {
-                writeln!(self.file.as_mut().unwrap(), "{}", self.buffer.join("\n")).unwrap();
-                self.buffer.clear();
+                self.flush_buffer();
             }
         }
         self.previous = Some(state.clone());
 
+        Ok(vec![])
+    }
+
+    fn finish(&mut self) -> Result<Vec<Detection>, Error> {
+        self.flush_buffer();
         Ok(vec![])
     }
 }
