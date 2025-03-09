@@ -15,6 +15,7 @@ use tf_demo_parser::demo::header::Header;
 use std::borrow::Cow;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct CheatDemoHandler<'a, T: MessageHandler> {
     pub server_tick: ServerTick,
     pub demo_tick: DemoTick,
@@ -151,16 +152,18 @@ impl<'a, T: MessageHandler> CheatDemoHandler<'a, T> {
         self.state_handler.handle_message(message, tick);
     }
 
+    #[allow(dead_code)]
     pub fn into_output(self) -> T::Output {
         self.analyser.into_output(&self.state_handler)
     }
-
+    #[allow(dead_code)]
     pub fn get_parser_state(&self) -> &ParserState {
         &self.state_handler
     }
 }
 
 impl<T: MessageHandler + BorrowMessageHandler> CheatDemoHandler<'_, T> {
+    #[allow(dead_code)]
     pub fn borrow_output(&self) -> &T::Output {
         self.analyser.borrow_output(&self.state_handler)
     }

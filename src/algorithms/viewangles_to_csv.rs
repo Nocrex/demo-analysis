@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 
@@ -5,22 +6,41 @@ use anyhow::Error;
 use tf_demo_parser::ParserState;
 use crate::base::cheat_analyser_base::{CheatAnalyserState, PlayerState};
 use crate::util::viewangle_delta;
-use crate::{CheatAlgorithm, Detection};
+use crate::{dev_print, CheatAlgorithm, Detection};
 
 pub struct ViewAnglesToCSV {
     file: Option<File>,
     previous: Option<CheatAnalyserState>,
-    buffer: Vec<String>,
+    history: Vec<Record>,
+}
+
+struct Record {
+    tick: u32,
+    name: String,
+    steam_id: String,
+    origin_x: f32,
+    origin_y: f32,
+    origin_z: f32,
+    viewangle: f32,
+    pitchangle: f32,
+    va_delta: f32,
+    pa_delta: f32,
+}
+
+impl Record {
+    fn to_string(&self) -> String {
+        format!("{},{},{},{},{},{},{},{},{},{}", self.tick, self.name, self.steam_id, self.origin_x, self.origin_y, self.origin_z, self.viewangle, self.pitchangle, self.va_delta, self.pa_delta)
+    }
 }
 
 impl ViewAnglesToCSV {
-    const MAX_STATES_IN_MEMORY: usize = 1024;
+    const CHUNK_SIZE: usize = 2048;
 
     pub fn new() -> Self {
         let writer: ViewAnglesToCSV = ViewAnglesToCSV { 
             file: None,
             previous: None,
-            buffer: Vec::with_capacity(Self::MAX_STATES_IN_MEMORY)
+            history: Vec::new()
         };
         writer
     }
@@ -53,14 +73,6 @@ impl ViewAnglesToCSV {
         output.push('"');
         output
     }
-
-    fn flush_buffer(&mut self) {
-        if !self.buffer.is_empty() {
-            writeln!(self.file.as_mut().unwrap(), "{}", self.buffer.join("\n")).unwrap();
-            self.buffer.clear();
-        }
-    }
-
 }
 
 impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
@@ -125,25 +137,20 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
                     }
                 });
                 
-            self.buffer.push(
-                format!(
-                    "{},{},{},{},{},{},{},{},{},{}",
-                    ticknum,
+            self.history.push(
+                Record {
+                    tick: ticknum,
                     name,
-                    steam_id,
+                    steam_id: steam_id.clone(),
                     origin_x,
                     origin_y,
                     origin_z,
                     viewangle,
                     pitchangle,
                     va_delta,
-                    pa_delta
-                )
+                    pa_delta,
+                }
             );
-
-            if self.buffer.len() >= Self::MAX_STATES_IN_MEMORY {
-                self.flush_buffer();
-            }
         }
         self.previous = Some(state.clone());
 
@@ -151,7 +158,47 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
     }
 
     fn finish(&mut self) -> Result<Vec<Detection>, Error> {
-        self.flush_buffer();
+
+        let dest = self.file.as_mut().unwrap();
+        let mut record_dict: HashMap<String, Vec<Record>> = HashMap::new();
+
+        // This block is written to minimize memory usage while retaining performance.
+        if !self.history.is_empty() {
+            dev_print!("viewangles_to_csv: Writing csv output...");
+
+            while self.history.len() > 0 {
+                let record = self.history.pop().unwrap();
+                let steam_id = record.steam_id.clone();
+                let records = record_dict.entry(steam_id).or_insert(Vec::new());
+                records.push(record);
+            }
+
+            // we want csv to be sorted by steamid...
+            let mut sorted_steamids = record_dict
+                .keys()
+                .cloned()
+                .collect::<Vec<String>>();
+
+            sorted_steamids.sort();
+
+            // ...and then by tick
+            for steam_id in sorted_steamids {
+                let records = record_dict.get_mut(&steam_id).unwrap();
+                records.sort_by(|a, b| a.tick.cmp(&b.tick));
+
+                // write in batches to balance perf and memory usage
+                for chunk in records.chunks(ViewAnglesToCSV::CHUNK_SIZE) {
+                    writeln!(
+                        dest,
+                        "{}",
+                        chunk.iter().map(|r| r.to_string()).collect::<Vec<String>>().join("\n")
+                    ).unwrap();
+
+                    dest.sync_data()?;
+                }
+            }
+        }
+
         Ok(vec![])
     }
 }

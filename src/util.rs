@@ -18,6 +18,7 @@ pub fn viewangle_delta(curr_viewangle: f32, curr_pitchangle: f32, prev_viewangle
 
 // Since TF2 has an object limit of 2048, the lowest 11 bits of the handle ID represent the entity ID.
 // Source: https://developer.valvesoftware.com/wiki/CHandle
+#[allow(dead_code)]
 pub fn handle_to_entid(handle: u32) -> EntityId {
     let entid = handle & 0x7FF;
     EntityId::from(entid)
