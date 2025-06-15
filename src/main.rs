@@ -4,9 +4,11 @@ mod algorithms {
     pub mod viewangles_180degrees;
     pub mod viewangles_to_csv;
     pub mod write_to_file;
-    
-    pub mod oob_pitch;
+
+    pub mod aim_snap;
     pub mod angle_repeat;
+    pub mod jankguard;
+    pub mod oob_pitch;
 }
 
 mod base {
@@ -29,7 +31,9 @@ use algorithms::{
     viewangles_180degrees::ViewAngles180Degrees,
     viewangles_to_csv::ViewAnglesToCSV,
     write_to_file::WriteToFile,
-    angle_repeat::AngleRepeat,
+
+    aim_snap::AimSnap, 
+    angle_repeat::AngleRepeat, 
     oob_pitch::OOBPitch,
 };
 use tf_demo_parser::{demo::{data::DemoTick, header::Header, message::Message, parser::RawPacketStream}, MessageType};
@@ -83,6 +87,7 @@ fn main() -> Result<(), Error> {
         Box::new(WriteToFile::new()),
         Box::new(OOBPitch::new()),
         Box::new(AngleRepeat::new()),
+        Box::new(AimSnap::new()),
     ];
 
     let specified_algorithms = matches.opt_strs("a");
