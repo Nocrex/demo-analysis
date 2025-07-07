@@ -94,6 +94,7 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                 && NOISE_RANGE.contains(deltas.last().unwrap())
                 && deltas.iter().filter(|&d| NOISE_RANGE.contains(d)).count() == deltas.len() - 1
                 && deltas.iter().filter(|&&d| d > SNAP_THRESHOLD).count() == 1
+                && self.jg.fired(&steam_id, ticknum) < 5
             {
                 detections.push(Detection {
                     tick: ticknum - 2,
@@ -116,10 +117,10 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
         &mut self,
         message: &tf_demo_parser::demo::message::Message,
         state: &CheatAnalyserState,
-        _: &ParserState,
+        parser_state: &ParserState,
         tick: tf_demo_parser::demo::data::DemoTick,
     ) -> Result<Vec<Detection>, Error> {
-        self.jg.on_message(message, state, tick);
+        self.jg.on_message(message, state, parser_state, tick);
         Ok(vec![])
     }
 }

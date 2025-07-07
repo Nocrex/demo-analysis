@@ -13,6 +13,7 @@ use super::jankguard::JankGuard;
 
 const MIN_ANGLE_DIFF_RATIO: f32 = 20.0;
 const MAX_FIRST_THIRD_ANGLE_DELTA: f32 = 2.0;
+const MIN_FIRST_SECOND_ANGLE_DELTA: f32 = 5.0;
 
 #[derive(Default)]
 pub struct AngleRepeat {
@@ -65,7 +66,9 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
             let prev_player = self.ticks.get(1).and_then(|m| m.get(&steam_id)).cloned();
             let second_prev_player = self.ticks.get(2).and_then(|m| m.get(&steam_id)).cloned();
 
-            if self.jg.teleported(&steam_id, ticknum) < 60 || self.jg.spawned(&steam_id, ticknum) < 60 {
+            if self.jg.teleported(&steam_id, ticknum) < 60
+                || self.jg.spawned(&steam_id, ticknum) < 60
+            {
                 continue;
             }
 
@@ -86,9 +89,12 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                     continue;
                 }
 
-                let ratio = first_second_delta / first_third_delta.max(f32::EPSILON);
+                let ratio = first_second_delta / first_third_delta.max(1.0);
 
-                if first_third_delta <= MAX_FIRST_THIRD_ANGLE_DELTA && ratio > MIN_ANGLE_DIFF_RATIO
+                if first_third_delta <= MAX_FIRST_THIRD_ANGLE_DELTA
+                    && first_second_delta > MIN_FIRST_SECOND_ANGLE_DELTA
+                    && ratio > MIN_ANGLE_DIFF_RATIO
+                    && self.jg.fired(&steam_id, ticknum) < 3
                 {
                     detections.push(Detection {
                         tick: ticknum,
@@ -117,10 +123,10 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
         &mut self,
         message: &tf_demo_parser::demo::message::Message,
         state: &CheatAnalyserState,
-        _: &ParserState,
+        parser_state: &ParserState,
         tick: tf_demo_parser::demo::data::DemoTick,
     ) -> Result<Vec<Detection>, Error> {
-        self.jg.on_message(message, state, tick);
+        self.jg.on_message(message, state, parser_state, tick);
         Ok(vec![])
     }
 }
