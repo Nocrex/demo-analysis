@@ -84,7 +84,7 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                 let first_second_delta = util::angle_delta(first_angle, second_angle);
                 let first_third_delta = util::angle_delta(first_angle, third_angle);
 
-                if first_second_delta < 1.0 {
+                if first_second_delta < MIN_FIRST_SECOND_ANGLE_DELTA {
                     // Ignore players with only a tiny adjustment in second angle
                     continue;
                 }
@@ -92,7 +92,6 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                 let ratio = first_second_delta / first_third_delta.max(1.0);
 
                 if first_third_delta <= MAX_FIRST_THIRD_ANGLE_DELTA
-                    && first_second_delta > MIN_FIRST_SECOND_ANGLE_DELTA
                     && ratio > MIN_ANGLE_DIFF_RATIO
                     && self.jg.fired(&steam_id, ticknum) < 3
                 {
