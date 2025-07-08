@@ -29,7 +29,7 @@ impl AimSnap {
 
 impl<'a> CheatAlgorithm<'a> for AimSnap {
     fn default(&self) -> bool {
-        true
+        false
     }
 
     fn algorithm_name(&self) -> &str {
