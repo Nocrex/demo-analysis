@@ -10,6 +10,8 @@ pub mod algorithms {
     pub mod jankguard;
     pub mod oob_pitch;
 }
+use std::collections::HashMap;
+
 //
 // Import algorithm struct here.
 pub use algorithms::{
@@ -129,8 +131,11 @@ pub trait CheatAlgorithm<'a> {
     fn finish(&mut self) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
     }
+    
+    fn params(&mut self) -> Option<&mut HashMap<&'static str, f32>>{
+        None
+    }
 }
-
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Detection {

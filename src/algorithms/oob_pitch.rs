@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     base::cheat_analyser_base::{CheatAnalyserState, PlayerState},
@@ -9,17 +9,20 @@ use serde_json::json;
 use steamid_ng::SteamID;
 use tf_demo_parser::ParserState;
 
-const MIN_PITCH: f32 = -89.29412078857422;
-const MAX_PITCH: f32 = 89.29411315917969;
-
 pub struct OOBPitch {
     last_detections: HashSet<String>,
+    
+    params: HashMap<&'static str, f32>,
 }
 
 impl OOBPitch {
     pub fn new() -> Self {
         let analyser: OOBPitch = OOBPitch {
-            last_detections: HashSet::new()
+            last_detections: HashSet::new(),
+            params: HashMap::from([
+                ("min_pitch", -89.29412078857422),
+                ("max_pitch", 89.29411315917969),
+            ])
         };
         analyser
     }
@@ -57,8 +60,10 @@ impl<'a> CheatAlgorithm<'a> for OOBPitch {
             };
 
             let steam_id = &info.steam_id;
+            let min_pitch = self.params["min_pitch"];
+            let max_pitch = self.params["max_pitch"];
 
-            if !(MIN_PITCH..=MAX_PITCH).contains(&player.pitch_angle) {
+            if !(min_pitch..=max_pitch).contains(&player.pitch_angle) {
                 detections.insert(steam_id.clone());
                 if !self.last_detections.contains(steam_id){
                     submitted_detections.push(Detection {
@@ -72,5 +77,9 @@ impl<'a> CheatAlgorithm<'a> for OOBPitch {
         }
         self.last_detections = detections;
         Ok(submitted_detections)
+    }
+    
+    fn params(&mut self) -> Option<&mut HashMap<&'static str, f32>> {
+        Some(&mut self.params)    
     }
 }

@@ -11,19 +11,24 @@ use tf_demo_parser::ParserState;
 
 use super::jankguard::JankGuard;
 
-const NOISE_RANGE: std::ops::Range<f32> = 0.001..0.5;
-const SNAP_THRESHOLD: f32 = 10.0;
-
 #[derive(Default)]
 pub struct AimSnap {
     ticks: Vec<HashMap<u64, Player>>,
 
     jg: JankGuard,
+    params: HashMap<&'static str, f32>,
 }
 
 impl AimSnap {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            params: HashMap::from([
+                ("noise_max", 0.5),
+                ("noise_min", 0.001),
+                ("snap_threshold", 10.0),
+            ]),
+            ..Default::default()
+        }
     }
 }
 
@@ -89,11 +94,16 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
             for (a, b) in angles.iter().zip(angles.iter().skip(1)) {
                 deltas.push(util::angle_delta(*a, *b));
             }
+            let noise_range = self.params["noise_min"]..self.params["noise_max"];
 
-            if NOISE_RANGE.contains(deltas.first().unwrap())
-                && NOISE_RANGE.contains(deltas.last().unwrap())
-                && deltas.iter().filter(|&d| NOISE_RANGE.contains(d)).count() == deltas.len() - 1
-                && deltas.iter().filter(|&&d| d > SNAP_THRESHOLD).count() == 1
+            if noise_range.contains(deltas.first().unwrap())
+                && noise_range.contains(deltas.last().unwrap())
+                && deltas.iter().filter(|&d| noise_range.contains(d)).count() == deltas.len() - 1
+                && deltas
+                    .iter()
+                    .filter(|&&d| d > self.params["snap_threshold"])
+                    .count()
+                    == 1
                 && self.jg.fired(&steam_id, ticknum) < 5
             {
                 detections.push(Detection {
@@ -122,5 +132,9 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
     ) -> Result<Vec<Detection>, Error> {
         self.jg.on_message(message, state, parser_state, tick);
         Ok(vec![])
+    }
+
+    fn params(&mut self) -> Option<&mut HashMap<&'static str, f32>> {
+        Some(&mut self.params)
     }
 }

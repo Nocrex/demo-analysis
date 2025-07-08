@@ -11,20 +11,24 @@ use tf_demo_parser::ParserState;
 
 use super::jankguard::JankGuard;
 
-const MIN_ANGLE_DIFF_RATIO: f32 = 20.0;
-const MAX_FIRST_THIRD_ANGLE_DELTA: f32 = 2.0;
-const MIN_FIRST_SECOND_ANGLE_DELTA: f32 = 5.0;
-
 #[derive(Default)]
 pub struct AngleRepeat {
     ticks: Vec<HashMap<u64, Player>>,
 
     jg: JankGuard,
+    params: HashMap<&'static str, f32>,
 }
 
 impl AngleRepeat {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            params: HashMap::from([
+                ("min_angle_diff_ratio", 20.0),
+                ("max_first_third_angle_delta", 2.0),
+                ("min_first_second_angle_delta", 5.0),
+            ]),
+            ..Default::default()
+        }
     }
 }
 
@@ -84,15 +88,15 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                 let first_second_delta = util::angle_delta(first_angle, second_angle);
                 let first_third_delta = util::angle_delta(first_angle, third_angle);
 
-                if first_second_delta < MIN_FIRST_SECOND_ANGLE_DELTA {
+                if first_second_delta < self.params["min_first_second_angle_delta"] {
                     // Ignore players with only a tiny adjustment in second angle
                     continue;
                 }
 
                 let ratio = first_second_delta / first_third_delta.max(1.0);
 
-                if first_third_delta <= MAX_FIRST_THIRD_ANGLE_DELTA
-                    && ratio > MIN_ANGLE_DIFF_RATIO
+                if first_third_delta <= self.params["max_first_third_angle_delta"]
+                    && ratio > self.params["min_angle_diff_ratio"]
                     && self.jg.fired(&steam_id, ticknum) < 3
                 {
                     detections.push(Detection {
@@ -127,5 +131,9 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
     ) -> Result<Vec<Detection>, Error> {
         self.jg.on_message(message, state, parser_state, tick);
         Ok(vec![])
+    }
+
+    fn params(&mut self) -> Option<&mut HashMap<&'static str, f32>> {
+        Some(&mut self.params)
     }
 }

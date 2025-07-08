@@ -22,6 +22,7 @@ fn main() -> eframe::Result {
 #[derive(Default)]
 struct Gui {
     algos: HashMap<String, bool>,
+    params: HashMap<String, HashMap<&'static str, f32>>,
     file: Option<std::path::PathBuf>,
     processing: bool,
     detections: HashMap<u64, Vec<Detection>>,
@@ -33,12 +34,34 @@ struct Gui {
 
 impl Gui {
     pub fn new() -> Self {
+        let mut params = HashMap::new();
+        for mut a in analysis_template::algorithms().drain(..) {
+            if a.params().is_some() {
+                params.insert(a.algorithm_name().to_string(), a.params().cloned().unwrap());
+            }
+        }
+        if let Ok(data) = std::fs::read_to_string("params.json") {
+            if let Ok(saved_params) =
+                serde_json::from_str::<HashMap<String, HashMap<String, f32>>>(&data)
+            {
+                for saved_algo in saved_params {
+                    if let Some(algo) = params.get_mut(&saved_algo.0) {
+                        for saved_param in saved_algo.1 {
+                            if let Some(param) = algo.get_mut(saved_param.0.as_str()) {
+                                *param = saved_param.1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         Self {
             algos: HashMap::from_iter(
                 analysis_template::algorithms()
                     .iter()
                     .map(|a| (a.algorithm_name().to_string(), a.default())),
             ),
+            params,
             ..Default::default()
         }
     }
@@ -51,6 +74,12 @@ impl Gui {
         self.selected_player = None;
         let mut algorithms = analysis_template::algorithms();
         algorithms.retain(|a| self.algos[a.algorithm_name()]);
+
+        for a in algorithms.iter_mut() {
+            if let Some(p) = self.params.get(a.algorithm_name()) {
+                a.params().as_mut().unwrap().clone_from(p);
+            }
+        }
 
         let file = std::fs::read(self.file.as_ref().unwrap()).unwrap();
         let demo: Demo = Demo::new(&file);
@@ -71,10 +100,41 @@ impl eframe::App for Gui {
             if self.processing {
                 ui.disable();
             }
-            ui.heading("Algorithms");
-            for mut algo in self.algos.iter_mut().sorted_by_key(|a| a.0) {
-                ui.checkbox(&mut algo.1, algo.0);
-            }
+            ui.horizontal(|ui|{
+                ui.vertical(|ui|{
+                    ui.heading("Algorithms");
+                    for mut algo in self.algos.iter_mut().sorted_by_key(|a| a.0) {
+                        ui.checkbox(&mut algo.1, algo.0);
+                    }
+                });
+                ui.add_space(10.0);
+                ui.separator();
+                ui.add_space(10.0);
+                ui.vertical(|ui|{
+                    ui.horizontal(|ui|{
+                        ui.heading("Parameters");
+                        if ui.button("Save").clicked(){
+                            std::fs::write("params.json", &serde_json::to_vec_pretty(&self.params).unwrap()).unwrap();
+                        }
+                    });
+                    ui.separator();
+                    for (name, params) in self.params.iter_mut().sorted_by_key(|a|a.0) {
+                        if !self.algos[name]{
+                            continue;
+                        }
+                        ui.add_space(10.0);
+                        ui.heading(name);
+                        ui.separator();
+                        for param in params.iter_mut().sorted_by_key(|p|p.0){
+                            ui.horizontal(|ui|{
+                                ui.add(egui::DragValue::new(param.1).max_decimals(50));
+                                ui.label(*param.0);
+                            });
+                        }
+                    }
+                });
+            });
+            ui.add_space(10.0);
             ui.horizontal(|ui| {
                 if ui.button("Open...").clicked() {
                     if let Some(path) = rfd::FileDialog::new()
@@ -108,6 +168,7 @@ impl eframe::App for Gui {
                     ui.label("Drop to analyse");
                 }
             });
+            ui.add_space(10.0);
             if let Some(p) = &self.file {
                 ui.heading(p.file_name().unwrap().to_string_lossy());
                 ui.label("Doubleclick steamid to open profile");
