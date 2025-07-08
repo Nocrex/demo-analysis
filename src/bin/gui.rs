@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use analysis_template::Detection;
+use analysis_template::{base::cheat_analyser_base::CheatAnalyser, Detection};
 use eframe::egui;
 use itertools::Itertools;
 use tf_demo_parser::Demo;
@@ -27,6 +27,8 @@ struct Gui {
     detections: HashMap<u64, Vec<Detection>>,
     selected_player: Option<u64>,
     selected_detection: Option<usize>,
+
+    analyser: Option<CheatAnalyser<'static>>,
 }
 
 impl Gui {
@@ -53,10 +55,12 @@ impl Gui {
         let file = std::fs::read(self.file.as_ref().unwrap()).unwrap();
         let demo: Demo = Demo::new(&file);
         let analyser = analysis_template::analyse(&demo, algorithms).unwrap();
+        self.analyser = Some(analyser);
         self.detections.clear();
-        for det in analyser.detections {
+        for det in self.analyser.as_ref().unwrap().detections.clone() {
             self.detections.entry(det.player).or_default().push(det);
         }
+        self.analyser.as_ref().unwrap().print_detection_summary();
     }
 }
 
@@ -84,6 +88,20 @@ impl eframe::App for Gui {
                 if self.file.is_some() {
                     if ui.button("Analyse").clicked() {
                         self.analyse();
+                    }
+                    if ui.button("Save detections").clicked() {
+                        if let Some(a) = &self.analyser {
+                            if let Some(path) = rfd::FileDialog::new().set_file_name("detections.json").save_file(){
+                                let analysis = serde_json::json!({
+                                    "server_ip": a.header.as_ref().map_or("unknown".to_string(), |h| h.server.clone()),
+                                    "duration": a.tick,
+                                    "author": a.header.as_ref().map_or("unknown".to_string(), |h| h.nick.clone()),
+                                    "map": a.header.as_ref().map_or("unknown".to_string(), |h| h.map.clone()),
+                                    "detections": a.detections
+                                });
+                                std::fs::write(path, serde_json::to_vec_pretty(&analysis).unwrap()).unwrap();
+                            }
+                        }
                     }
                 }
                 if hovered {
