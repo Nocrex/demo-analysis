@@ -18,6 +18,7 @@ fn main() -> Result<(), Error> {
     opts.optmulti("a", "algorithm", "specify the algorithm to run. Include multiple -a flags to run multiple algorithms. If not specified, the default algorithms are run.", "ALGORITHM [-a ALGORITHM]...");
     opts.optflag("c", "count", "only print the number of detections");
     opts.optflag("h", "help", "print this help menu");
+    opts.optopt("s", "params", "Parameter json file to use for the algorithms", "PATH");
 
     fn print_help(opts: &getopts::Options) {
         println!("{}", opts.usage("Usage: analysis-template [options]"));
@@ -49,6 +50,21 @@ fn main() -> Result<(), Error> {
         algorithms.retain(|a| a.default());
     } else {
         algorithms.retain(|a| specified_algorithms.contains(&a.algorithm_name().to_string()));
+    }
+    
+    if let Some(param_file_path) = matches.opt_str("s") {
+        let c = std::fs::read(param_file_path).expect("Couldn't read parameter file");
+        let params = serde_json::from_slice::<std::collections::HashMap<String, std::collections::HashMap<String, f32>>>(&c).expect("Couldn't decode parameter file");
+        for algo in algorithms.iter_mut(){
+            if algo.params().is_none(){
+                continue;
+            }
+            if let Some(p) = params.get(algo.algorithm_name()){
+                for param in algo.params().unwrap(){
+                    *param.1 = p[*param.0];
+                }
+            }
+        } 
     }
 
     let unknown_algorithms: Vec<String> = specified_algorithms
