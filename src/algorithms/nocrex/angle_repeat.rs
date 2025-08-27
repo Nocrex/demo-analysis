@@ -24,9 +24,9 @@ impl AngleRepeat {
     pub fn new() -> Self {
         Self {
             params: HashMap::from([
-                ("min_angle_diff_ratio", 20.0),
-                ("max_first_third_angle_delta", 2.0),
-                ("min_first_second_angle_delta", 5.0),
+                ("min_angle_diff_ratio", 3.0),
+                ("min_first_second_angle_delta", 0.0),
+                ("max_first_third_angle_delta", 0.028),
             ]),
             ..Default::default()
         }
