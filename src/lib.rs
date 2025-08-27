@@ -7,8 +7,11 @@ pub mod algorithms {
 
     pub mod aim_snap;
     pub mod angle_repeat;
-    pub mod jankguard;
     pub mod oob_pitch;
+
+    pub mod util {
+        pub mod jankguard;
+    }
 }
 use std::collections::HashMap;
 

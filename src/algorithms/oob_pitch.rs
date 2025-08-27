@@ -1,3 +1,5 @@
+// Written by Nocrex
+
 use std::collections::{HashMap, HashSet};
 
 use crate::{

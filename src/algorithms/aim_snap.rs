@@ -1,6 +1,9 @@
+// Written by Nocrex
+
 use std::collections::HashMap;
 
 use crate::{
+    algorithms::util::jankguard::JankGuard,
     base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState},
     util, CheatAlgorithm, Detection,
 };
@@ -8,8 +11,6 @@ use anyhow::Error;
 use serde_json::json;
 use steamid_ng::SteamID;
 use tf_demo_parser::ParserState;
-
-use super::jankguard::JankGuard;
 
 #[derive(Default)]
 pub struct AimSnap {
