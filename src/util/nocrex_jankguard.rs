@@ -112,7 +112,7 @@ impl JankGuard {
                                         tf_demo_parser::demo::sendprop::SendPropValue::Integer(x) => x.try_into().unwrap_or_default(),
                                         _ => {continue}
                                     };
-                                            let entity_id = crate::util::handle_to_entid(handle_id);
+                                            let entity_id = crate::util::helpers::handle_to_entid(handle_id);
                                             match state
                                                 .entid_to_userid
                                                 .get(&entity_id)

@@ -5,7 +5,7 @@ use std::io::Write;
 use anyhow::Error;
 use tf_demo_parser::ParserState;
 use crate::base::cheat_analyser_base::{CheatAnalyserState, PlayerState};
-use crate::util::viewangle_delta;
+use crate::util::helpers::viewangle_delta;
 use crate::{dev_print, CheatAlgorithm, Detection};
 
 pub struct ViewAnglesToCSV {

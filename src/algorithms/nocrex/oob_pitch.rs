@@ -36,7 +36,7 @@ impl<'a> CheatAlgorithm<'a> for OOBPitch {
     }
 
     fn algorithm_name(&self) -> &str {
-        "oob_pitch"
+        "nocrex/oob_pitch"
     }
 
     fn on_tick(

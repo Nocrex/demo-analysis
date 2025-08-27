@@ -1,3 +1,6 @@
+// Put individual functions with widespread utility in here.
+// For more complicated structures, consider making your own file in the /util directory.
+
 use tf_demo_parser::demo::message::packetentities::EntityId;
 
 // Compute the difference in viewangles. We have to account for the fact viewangles are in a circle.

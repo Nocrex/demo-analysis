@@ -4,15 +4,18 @@ pub mod algorithms {
     pub mod viewangles_180degrees;
     pub mod viewangles_to_csv;
     pub mod write_to_file;
-
-    pub mod aim_snap;
-    pub mod angle_repeat;
-    pub mod oob_pitch;
-
-    pub mod util {
-        pub mod jankguard;
+    pub mod nocrex {
+        pub mod aimsnap;
+        pub mod angle_repeat;
+        pub mod oob_pitch;
     }
 }
+
+pub mod util {
+    pub mod helpers;
+    pub mod nocrex_jankguard;
+}
+
 use std::collections::HashMap;
 
 //
@@ -23,9 +26,11 @@ pub use algorithms::{
     viewangles_to_csv::ViewAnglesToCSV,
     write_to_file::WriteToFile,
 
-    aim_snap::AimSnap, 
-    angle_repeat::AngleRepeat, 
-    oob_pitch::OOBPitch,
+    nocrex:: {
+        aimsnap::AimSnap, 
+        angle_repeat::AngleRepeat, 
+        oob_pitch::OOBPitch,
+    }
 };
 
 pub fn algorithms() -> Vec<Box<dyn CheatAlgorithm<'static>>> {
@@ -45,7 +50,6 @@ pub mod base {
     pub mod demo_handler_base;
 }
 
-pub mod util;
 use anyhow::Error;
 use base::{cheat_analyser_base::CheatAnalyserState};
 use bitbuffer::BitRead;

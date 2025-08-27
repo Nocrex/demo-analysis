@@ -2,7 +2,7 @@ use anyhow::Error;
 use serde_json::json;
 use steamid_ng::SteamID;
 use tf_demo_parser::ParserState;
-use crate::{base::cheat_analyser_base::{CheatAnalyserState, PlayerState}, util::viewangle_delta, CheatAlgorithm, Detection};
+use crate::{base::cheat_analyser_base::{CheatAnalyserState, PlayerState}, util::helpers::viewangle_delta, CheatAlgorithm, Detection};
 
 // This example file looks for any examples of players rotating 180 degrees within a single server tick.
 
