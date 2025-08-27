@@ -7,7 +7,6 @@ use tf_demo_parser::ParserState;
 use crate::base::cheat_analyser_base::CheatAnalyserState;
 use crate::{CheatAlgorithm, Detection};
 
-// header is not needed for this algorithm, but is included to serve as an example of how to handle the lifetimes.
 #[allow(dead_code)]
 pub struct WriteToFile {
     state_history: Vec<CheatAnalyserState>,
@@ -32,6 +31,7 @@ impl WriteToFile {
             .collect::<Vec<String>>().join(",\n"); 
     
         write!(self.file.as_mut().unwrap(), "{}", out).unwrap();
+        self.state_history.clear();
     }
 
     pub fn init_file(&mut self, file_path: &str) {
@@ -56,6 +56,7 @@ impl WriteToFile {
     }
 }
 
+// lifetimes not needed for this algorithm, but is included to serve as an example of how to handle them.
 impl CheatAlgorithm<'_> for WriteToFile {
     fn default(&self) -> bool {
         false
@@ -78,7 +79,6 @@ impl CheatAlgorithm<'_> for WriteToFile {
     
         if self.state_history.len() > WriteToFile::MAX_STATES_IN_MEMORY {
             self.write_states_to_file();
-            self.state_history.clear();
         }
 
         Ok(vec![])
@@ -87,7 +87,6 @@ impl CheatAlgorithm<'_> for WriteToFile {
     fn finish(&mut self) -> Result<Vec<Detection>, Error> {
         if self.state_history.len() > 0 {
             self.write_states_to_file();
-            self.state_history.clear();
         }
 
         writeln!(self.file.as_mut().unwrap(), "\n]").unwrap();
