@@ -3,9 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState},
-    CheatAlgorithm, Detection,
-    util::{helpers::angle_delta, nocrex_jankguard::JankGuard},
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::{helpers::{angle_delta, get_parameter_value}, nocrex_jankguard::JankGuard}, CheatAlgorithm, Detection, Parameter, Parameters
 };
 use anyhow::Error;
 use serde_json::json;
@@ -17,16 +15,16 @@ pub struct AngleRepeat {
     ticks: Vec<HashMap<u64, Player>>,
 
     jg: JankGuard,
-    params: HashMap<&'static str, f32>,
+    params: Parameters,
 }
 
 impl AngleRepeat {
     pub fn new() -> Self {
         Self {
             params: HashMap::from([
-                ("min_angle_diff_ratio", 3.0),
-                ("min_first_second_angle_delta", 0.0),
-                ("max_first_third_angle_delta", 0.028),
+                ("min_angle_diff_ratio".to_string(), Parameter::Float(3.0)),
+                ("min_first_second_angle_delta".to_string(), Parameter::Float(0.0)),
+                ("max_first_third_angle_delta".to_string(), Parameter::Float(0.028)),
             ]),
             ..Default::default()
         }
@@ -55,6 +53,10 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
 
         self.ticks.insert(0, HashMap::new());
         self.ticks.truncate(3);
+        
+        let min_angle_diff_ratio: f32 = get_parameter_value(&self.params, "min_angle_diff_ratio");
+        let min_first_second_angle_delta: f32 = get_parameter_value(&self.params, "min_first_second_angle_delta");
+        let max_first_third_angle_delta: f32 = get_parameter_value(&self.params, "max_first_third_angle_delta");
 
         for player in players.iter().filter(|p| {
             p.in_pvs
@@ -89,15 +91,15 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                 let first_second_delta = angle_delta(first_angle, second_angle);
                 let first_third_delta = angle_delta(first_angle, third_angle);
 
-                if first_second_delta < self.params["min_first_second_angle_delta"] {
+                if first_second_delta < min_first_second_angle_delta {
                     // Ignore players with only a tiny adjustment in second angle
                     continue;
                 }
 
                 let ratio = first_second_delta / first_third_delta.max(1.0);
 
-                if first_third_delta <= self.params["max_first_third_angle_delta"]
-                    && ratio > self.params["min_angle_diff_ratio"]
+                if first_third_delta <= max_first_third_angle_delta
+                    && ratio > min_angle_diff_ratio
                     && self.jg.fired(&steam_id, ticknum) < 3
                 {
                     detections.push(Detection {
@@ -134,7 +136,7 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
         Ok(vec![])
     }
 
-    fn params(&mut self) -> Option<&mut HashMap<&'static str, f32>> {
+    fn params(&mut self) -> Option<&mut Parameters> {
         Some(&mut self.params)
     }
 }

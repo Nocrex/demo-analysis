@@ -1,5 +1,5 @@
-use std::{env, fs::{self}};
-use analysis_template::{dev_print, CheatAlgorithm, SILENT};
+use std::{collections::HashMap, env, fs::{self}};
+use analysis_template::{dev_print, CheatAlgorithm, Parameter, SILENT};
 use anyhow::Error;
 
 
@@ -14,11 +14,11 @@ fn main() -> Result<(), Error> {
     let mut opts = Options::new();
     opts.optopt("i", "input", "set input file path", "PATH");
     opts.optflag("q", "quiet", "silence all output except for the final JSON string");
-    opts.optflag("p", "pretty", "same as -q, but with more human-readable json");
+    opts.optflag("Q", "quiet-pretty", "same as -q, but with more human-readable json");
     opts.optmulti("a", "algorithm", "specify the algorithm to run. Include multiple -a flags to run multiple algorithms. If not specified, the default algorithms are run.", "ALGORITHM [-a ALGORITHM]...");
     opts.optflag("c", "count", "only print the number of detections");
     opts.optflag("h", "help", "print this help menu");
-    opts.optopt("s", "params", "Parameter json file to use for the algorithms", "PATH");
+    opts.optopt("p", "params", "Parameter json file to use for the algorithms", "PATH");
 
     fn print_help(opts: &getopts::Options) {
         println!("{}", opts.usage("Usage: analysis-template [options]"));
@@ -38,8 +38,8 @@ fn main() -> Result<(), Error> {
     }
 
     let path = matches.opt_str("i").expect("No input file path provided");
-    let silent = matches.opt_present("q") || matches.opt_present("p");
-    let pretty = matches.opt_present("p");
+    let silent = matches.opt_present("q") || matches.opt_present("Q");
+    let pretty = matches.opt_present("Q");
     SILENT.store(silent, std::sync::atomic::Ordering::Relaxed);
 
     // To add your algorithm, call new() on it and store inside a Box.
@@ -54,14 +54,14 @@ fn main() -> Result<(), Error> {
     
     if let Some(param_file_path) = matches.opt_str("s") {
         let c = std::fs::read(param_file_path).expect("Couldn't read parameter file");
-        let params = serde_json::from_slice::<std::collections::HashMap<String, std::collections::HashMap<String, f32>>>(&c).expect("Couldn't decode parameter file");
+        let mut provided_params = serde_json::from_slice::<HashMap<String, Parameter>>(&c).expect("Couldn't decode parameter file");
         for algo in algorithms.iter_mut(){
             if algo.params().is_none(){
                 continue;
             }
-            if let Some(p) = params.get(algo.algorithm_name()){
-                for param in algo.params().unwrap(){
-                    *param.1 = p[*param.0];
+            if let Some(provided) = provided_params.get_mut(algo.algorithm_name()){
+                for mut algo_param in algo.params().unwrap(){
+                    algo_param.1 = provided;
                 }
             }
         } 

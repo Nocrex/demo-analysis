@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use analysis_template::{base::cheat_analyser_base::CheatAnalyser, Detection};
+use analysis_template::{base::cheat_analyser_base::CheatAnalyser, Detection, Parameter, Parameters};
 use eframe::egui;
 use itertools::Itertools;
 use tf_demo_parser::Demo;
@@ -22,7 +22,7 @@ fn main() -> eframe::Result {
 #[derive(Default)]
 struct Gui {
     algos: HashMap<String, bool>,
-    params: HashMap<String, HashMap<&'static str, f32>>,
+    params: HashMap<String, Parameters>,
     file: Option<std::path::PathBuf>,
     processing: bool,
     detections: HashMap<u64, Vec<Detection>>,
@@ -34,7 +34,7 @@ struct Gui {
 
 impl Gui {
     pub fn new() -> Self {
-        let mut params = HashMap::new();
+        let mut params: HashMap<String, Parameters> = HashMap::new();
         for mut a in analysis_template::algorithms().drain(..) {
             if a.params().is_some() {
                 params.insert(a.algorithm_name().to_string(), a.params().cloned().unwrap());
@@ -42,7 +42,7 @@ impl Gui {
         }
         if let Ok(data) = std::fs::read_to_string("params.json") {
             if let Ok(saved_params) =
-                serde_json::from_str::<HashMap<String, HashMap<String, f32>>>(&data)
+                serde_json::from_str::<HashMap<String, Parameters>>(&data)
             {
                 for saved_algo in saved_params {
                     if let Some(algo) = params.get_mut(&saved_algo.0) {
@@ -126,10 +126,29 @@ impl eframe::App for Gui {
                         ui.heading(name);
                         ui.separator();
                         for param in params.iter_mut().sorted_by_key(|p|p.0){
-                            ui.horizontal(|ui|{
-                                ui.add(egui::DragValue::new(param.1).max_decimals(50));
-                                ui.label(*param.0);
-                            });
+                            // ui.horizontal(|ui|{
+                            //     ui.add(egui::DragValue::new(param.1).max_decimals(50));
+                            //     ui.label(*param.0);
+                            // });
+                            match param.1 {
+                                Parameter::Float(f) => {
+                                   ui.horizontal(|ui|{
+                                       ui.add(egui::DragValue::new(f).speed(0.001).max_decimals(50));
+                                       ui.label(param.0);
+                                   });
+                                }
+                                Parameter::Int(i) => {
+                                    ui.horizontal(|ui|{
+                                        ui.add(egui::DragValue::new(i).speed(1).max_decimals(0));
+                                        ui.label(param.0);
+                                    });
+                                }
+                                Parameter::Bool(b) => {
+                                    ui.horizontal(|ui|{
+                                        ui.checkbox(b, param.0);
+                                    });
+                                }
+                            }
                         }
                     }
                 });

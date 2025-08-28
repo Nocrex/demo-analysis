@@ -3,8 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, PlayerState},
-    CheatAlgorithm, Detection,
+    base::cheat_analyser_base::{CheatAnalyserState, PlayerState}, util::helpers::get_parameter_value, CheatAlgorithm, Detection, Parameter, Parameters
 };
 use anyhow::Error;
 use serde_json::json;
@@ -14,7 +13,7 @@ use tf_demo_parser::ParserState;
 pub struct OOBPitch {
     last_detections: HashSet<String>,
     
-    params: HashMap<&'static str, f32>,
+    params: Parameters,
 }
 
 impl OOBPitch {
@@ -22,9 +21,9 @@ impl OOBPitch {
         let analyser: OOBPitch = OOBPitch {
             last_detections: HashSet::new(),
             params: HashMap::from([
-                ("min_pitch", -89.999),
-                ("max_pitch", 89.999),
-            ])
+                ("min_pitch".to_string(), Parameter::Float(-89.999)),
+                ("max_pitch".to_string(), Parameter::Float(89.999)),
+            ]),
         };
         analyser
     }
@@ -51,6 +50,9 @@ impl<'a> CheatAlgorithm<'a> for OOBPitch {
 
         let mut detections = HashSet::new();
 
+        let min_pitch: f32 = get_parameter_value(&self.params, "min_pitch");
+        let max_pitch: f32 = get_parameter_value(&self.params, "max_pitch");
+
         for player in players.iter().filter(|p| {
             p.in_pvs
                 && p.state == PlayerState::Alive
@@ -62,8 +64,6 @@ impl<'a> CheatAlgorithm<'a> for OOBPitch {
             };
 
             let steam_id = &info.steam_id;
-            let min_pitch = self.params["min_pitch"];
-            let max_pitch = self.params["max_pitch"];
 
             if !(min_pitch..=max_pitch).contains(&player.pitch_angle) {
                 detections.insert(steam_id.clone());
@@ -81,7 +81,7 @@ impl<'a> CheatAlgorithm<'a> for OOBPitch {
         Ok(submitted_detections)
     }
     
-    fn params(&mut self) -> Option<&mut HashMap<&'static str, f32>> {
-        Some(&mut self.params)    
+    fn params(&mut self) -> Option<&mut Parameters> {
+        Some(&mut self.params)
     }
 }

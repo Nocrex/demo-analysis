@@ -1,11 +1,9 @@
 // Written by Nocrex
 
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState},
-    CheatAlgorithm, Detection,
-    util::{helpers::angle_delta, nocrex_jankguard::JankGuard},
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, dev_print, util::{helpers::angle_delta, nocrex_jankguard::JankGuard}, CheatAlgorithm, Detection, Parameter, Parameters
 };
 use anyhow::Error;
 use serde_json::json;
@@ -16,16 +14,16 @@ use tf_demo_parser::ParserState;
 pub struct AimSnap {
     ticks: Vec<HashMap<u64, Player>>,
     jg: JankGuard,
-    params: HashMap<&'static str, f32>,
+    params: Parameters,
 }
 
 impl AimSnap {
     pub fn new() -> Self {
         Self {
             params: HashMap::from([
-                ("noise_min", 0.028),
-                ("noise_max", 0.99),
-                ("snap_threshold", 10.0),
+                ("noise_min".to_string(), Parameter::Float(0.028)),
+                ("noise_max".to_string(), Parameter::Float(0.99)),
+                ("snap_threshold".to_string(), Parameter::Float(10.0)),
             ]),
             ..Default::default()
         }
@@ -49,6 +47,25 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
         self.jg.on_tick(state);
         let ticknum = u32::from(state.tick);
         let players = &state.players;
+
+        let noise_range: Range<f32> = match (
+            self.params.get("noise_min"),
+            self.params.get("noise_max"),
+        ) {
+            (Some(Parameter::Float(min)), Some(Parameter::Float(max))) => *min..*max,
+            _ => {
+                dev_print!("Warning: Invalid noise bounds for {}. Using default of 0.028..0.99", self.algorithm_name());
+                0.028..0.99
+            },
+        };
+
+        let snap_threshold = match self.params.get("snap_threshold") {
+            Some(Parameter::Float(thresh)) => *thresh,
+            _ => {
+                dev_print!("Warning: Invalid snap_threshold for {}. Using default of 10.0", self.algorithm_name());
+                10.0
+            },
+        };
 
         let mut detections = Vec::new();
 
@@ -94,14 +111,13 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
             for (a, b) in angles.iter().zip(angles.iter().skip(1)) {
                 deltas.push(angle_delta(*a, *b));
             }
-            let noise_range = self.params["noise_min"]..self.params["noise_max"];
 
             if noise_range.contains(deltas.first().unwrap())
                 && noise_range.contains(deltas.last().unwrap())
                 && deltas.iter().filter(|&d| noise_range.contains(d)).count() == deltas.len() - 1
                 && deltas
                     .iter()
-                    .filter(|&&d| d > self.params["snap_threshold"])
+                    .filter(|&&d| d > snap_threshold)
                     .count()
                     == 1
                 && self.jg.fired(&steam_id, ticknum) < 5
@@ -134,7 +150,7 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
         Ok(vec![])
     }
 
-    fn params(&mut self) -> Option<&mut HashMap<&'static str, f32>> {
+    fn params(&mut self) -> Option<&mut Parameters> {
         Some(&mut self.params)
     }
 }
