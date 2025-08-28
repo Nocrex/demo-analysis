@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 
@@ -5,17 +6,18 @@ use anyhow::Error;
 use tf_demo_parser::ParserState;
 
 use crate::base::cheat_analyser_base::CheatAnalyserState;
-use crate::{CheatAlgorithm, Detection};
+use crate::util::helpers::get_parameter_value;
+use crate::{CheatAlgorithm, Detection, Parameter, Parameters};
 
 #[allow(dead_code)]
 pub struct WriteToFile {
     state_history: Vec<CheatAnalyserState>,
     file: Option<File>,
     first_write: bool,
+    params: Parameters,
 }
 
 impl WriteToFile {
-    const MAX_STATES_IN_MEMORY: usize = 1024;
 
     fn write_states_to_file(&mut self) {
         if self.first_write {
@@ -48,10 +50,15 @@ impl WriteToFile {
     }
 
     pub fn new () -> WriteToFile {
+        let params = HashMap::from([
+            ("write_batch_size".to_string(), Parameter::Int(1024))
+        ]);
+        let write_batch_size: i32 = get_parameter_value(&params, "write_batch_size");
         WriteToFile {
-            state_history: Vec::with_capacity(Self::MAX_STATES_IN_MEMORY),
+            state_history: Vec::with_capacity(write_batch_size as usize),
             file: None,
             first_write: true,
+            params
         }
     }
 }
@@ -76,8 +83,8 @@ impl CheatAlgorithm<'_> for WriteToFile {
     
     fn on_tick(&mut self, state: &CheatAnalyserState, _: &ParserState) -> Result<Vec<Detection>, Error> {
         self.state_history.push(state.clone());
-    
-        if self.state_history.len() > WriteToFile::MAX_STATES_IN_MEMORY {
+        let write_batch_size: i32 = get_parameter_value(&self.params, "write_batch_size");
+        if self.state_history.len() > write_batch_size as usize {
             self.write_states_to_file();
         }
 
@@ -93,6 +100,10 @@ impl CheatAlgorithm<'_> for WriteToFile {
         let _ = self.file.as_mut().unwrap().flush();
 
         Ok(vec![])
+    }
+
+    fn params(&mut self) -> Option<&mut Parameters> {
+        Some(&mut self.params)
     }
 }
 

@@ -5,13 +5,14 @@ use std::io::Write;
 use anyhow::Error;
 use tf_demo_parser::ParserState;
 use crate::base::cheat_analyser_base::{CheatAnalyserState, PlayerState};
-use crate::util::helpers::viewangle_delta;
-use crate::{dev_print, CheatAlgorithm, Detection};
+use crate::util::helpers::{get_parameter_value, viewangle_delta};
+use crate::{dev_print, CheatAlgorithm, Detection, Parameter, Parameters};
 
 pub struct ViewAnglesToCSV {
     file: Option<File>,
     previous: Option<CheatAnalyserState>,
     history: Vec<Record>,
+    params: Parameters,
 }
 
 struct Record {
@@ -34,13 +35,15 @@ impl Record {
 }
 
 impl ViewAnglesToCSV {
-    const CHUNK_SIZE: usize = 2048;
 
     pub fn new() -> Self {
         let writer: ViewAnglesToCSV = ViewAnglesToCSV { 
             file: None,
             previous: None,
-            history: Vec::new()
+            history: Vec::new(),
+            params: HashMap::from([
+                ("write_batch_size".to_string(),  Parameter::Int(2048)),
+            ]),
         };
         writer
     }
@@ -181,13 +184,15 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
 
             sorted_steamids.sort();
 
+            let write_batch_size: i32 = get_parameter_value(&self.params, "write_batch_size");
+
             // ...and then by tick
             for steam_id in sorted_steamids {
                 let records = record_dict.get_mut(&steam_id).unwrap();
                 records.sort_by(|a, b| a.tick.cmp(&b.tick));
 
                 // write in batches to balance perf and memory usage
-                for chunk in records.chunks(ViewAnglesToCSV::CHUNK_SIZE) {
+                for chunk in records.chunks(write_batch_size as usize) {
                     writeln!(
                         dest,
                         "{}",
@@ -200,5 +205,9 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
         }
 
         Ok(vec![])
+    }
+
+    fn params(&mut self) -> Option<&mut Parameters> {
+        Some(&mut self.params)
     }
 }
