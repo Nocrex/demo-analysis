@@ -17,6 +17,8 @@ pub struct AimSnap {
 
     jg: JankGuard,
     params: HashMap<&'static str, f32>,
+
+    detections: Vec<Detection>,
 }
 
 impl AimSnap {
@@ -50,8 +52,6 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
         let ticknum = u32::from(state.tick);
         let players = &state.players;
 
-        let mut detections = Vec::new();
-
         self.ticks.insert(0, HashMap::new());
         self.ticks.truncate(5);
 
@@ -67,9 +67,17 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
 
             let steam_id: u64 = u64::from(SteamID::from_steam3(&info.steam_id).unwrap());
 
-            if self.jg.teleported(&steam_id, ticknum) < 60
-                || self.jg.spawned(&steam_id, ticknum) < 60
-            {
+            let ticks_since_event = self
+                .jg
+                .teleported(&steam_id, ticknum)
+                .min(self.jg.spawned(&steam_id, ticknum));
+
+            if ticks_since_event < 60 {
+                // Ignore detections +-60 ticks from a teleport or spawn event
+                if ticks_since_event == 0 {
+                    self.detections
+                        .retain(|det| det.player != steam_id || (ticknum - det.tick) > 60);
+                }
                 continue;
             }
 
@@ -106,7 +114,7 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                     == 1
                 && self.jg.fired(&steam_id, ticknum) < 5
             {
-                detections.push(Detection {
+                self.detections.push(Detection {
                     tick: ticknum - 2,
                     algorithm: self.algorithm_name().to_string(),
                     player: steam_id,
@@ -116,11 +124,15 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                 });
             }
         }
-        Ok(detections)
+        Ok(vec![])
     }
 
     fn handled_messages(&self) -> Result<Vec<tf_demo_parser::MessageType>, bool> {
         self.jg.handled_messages()
+    }
+
+    fn finish(&mut self) -> Result<Vec<Detection>, Error> {
+        Ok(self.detections.clone())
     }
 
     fn on_message(
