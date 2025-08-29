@@ -23,8 +23,8 @@ impl AimSnap {
     pub fn new() -> Self {
         Self {
             params: HashMap::from([
-                ("noise_max", 0.5),
-                ("noise_min", 0.001),
+                ("noise_max", 0.99),
+                ("noise_min", 0.028),
                 ("snap_threshold", 10.0),
             ]),
             ..Default::default()

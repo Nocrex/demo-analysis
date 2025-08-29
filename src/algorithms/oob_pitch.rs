@@ -20,8 +20,8 @@ impl OOBPitch {
         let analyser: OOBPitch = OOBPitch {
             last_detections: HashSet::new(),
             params: HashMap::from([
-                ("min_pitch", -89.29412078857422),
-                ("max_pitch", 89.29411315917969),
+                ("min_pitch", -89.999),
+                ("max_pitch", 89.999),
             ])
         };
         analyser
