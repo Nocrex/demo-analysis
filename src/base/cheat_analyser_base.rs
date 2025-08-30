@@ -31,7 +31,8 @@ use std::str::FromStr;
 use std::sync::Mutex;
 use std::time::Instant;
 
-use crate::{dev_print, CheatAlgorithm, Detection};
+use crate::lib::algorithm::{CheatAlgorithm, Detection};
+use crate::dev_print;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub enum PlayerState {

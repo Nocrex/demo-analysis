@@ -7,7 +7,7 @@ use tf_demo_parser::demo::message::Message;
 use tf_demo_parser::{MessageType, ParserState};
 
 use crate::base::cheat_analyser_base::CheatAnalyserState;
-use crate::{CheatAlgorithm, Detection};
+use crate::lib::algorithm::{CheatAlgorithm, Detection};
 
 // header is not needed for this algorithm, but is included to serve as an example of how to handle the lifetimes.
 #[allow(dead_code)]

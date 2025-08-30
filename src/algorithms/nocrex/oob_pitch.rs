@@ -3,12 +3,15 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, PlayerState}, util::helpers::get_parameter_value, CheatAlgorithm, Detection, Parameter, Parameters
+    base::cheat_analyser_base::{CheatAnalyserState, PlayerState}, util::helpers::get_parameter_value
 };
 use anyhow::Error;
 use serde_json::json;
 use steamid_ng::SteamID;
 use tf_demo_parser::ParserState;
+
+use crate::lib::algorithm::{CheatAlgorithm, Detection};
+use crate::lib::parameters::{Parameter, Parameters};
 
 pub struct OOBPitch {
     last_detections: HashSet<String>,

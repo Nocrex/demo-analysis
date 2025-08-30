@@ -3,12 +3,15 @@
 use std::{collections::HashMap, ops::Range};
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, dev_print, util::{helpers::angle_delta, nocrex_jankguard::JankGuard}, CheatAlgorithm, Detection, Parameter, Parameters
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, dev_print, util::{helpers::angle_delta, nocrex::jankguard::JankGuard}
 };
 use anyhow::Error;
 use serde_json::json;
 use steamid_ng::SteamID;
 use tf_demo_parser::ParserState;
+
+use crate::lib::algorithm::{CheatAlgorithm, Detection};
+use crate::lib::parameters::{Parameter, Parameters};
 
 #[derive(Default)]
 pub struct AimSnap {
@@ -32,7 +35,7 @@ impl AimSnap {
 
 impl<'a> CheatAlgorithm<'a> for AimSnap {
     fn default(&self) -> bool {
-        false
+        true
     }
 
     fn algorithm_name(&self) -> &str {

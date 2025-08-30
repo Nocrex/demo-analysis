@@ -3,8 +3,12 @@
 use std::collections::HashMap;
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::{helpers::{angle_delta, get_parameter_value}, nocrex_jankguard::JankGuard}, CheatAlgorithm, Detection, Parameter, Parameters
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::{helpers::{angle_delta, get_parameter_value}, nocrex::jankguard::JankGuard}
 };
+
+use crate::lib::algorithm::{CheatAlgorithm, Detection};
+use crate::lib::parameters::{Parameter, Parameters};
+
 use anyhow::Error;
 use serde_json::json;
 use steamid_ng::SteamID;

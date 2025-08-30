@@ -1,5 +1,6 @@
 use std::{collections::HashMap, env, fs::{self}};
-use analysis_template::{dev_print, CheatAlgorithm, Parameter, SILENT};
+use analysis_template::{dev_print, lib::{algorithm::{get_algorithms, analyse, CheatAlgorithm}, parameters::Parameter}, SILENT};
+
 use anyhow::Error;
 
 
@@ -44,7 +45,7 @@ fn main() -> Result<(), Error> {
 
     // To add your algorithm, call new() on it and store inside a Box.
     // You will need to import it at the top of the file.
-    let mut algorithms: Vec<Box<dyn CheatAlgorithm>> = analysis_template::algorithms();
+    let mut algorithms: Vec<Box<dyn CheatAlgorithm>> = get_algorithms();
     let specified_algorithms = matches.opt_strs("a");
     if specified_algorithms.is_empty() && !matches.opt_present("a") {
         algorithms.retain(|a| a.default());
@@ -52,7 +53,7 @@ fn main() -> Result<(), Error> {
         algorithms.retain(|a| specified_algorithms.contains(&a.algorithm_name().to_string()));
     }
     
-    if let Some(param_file_path) = matches.opt_str("s") {
+    if let Some(param_file_path) = matches.opt_str("p") {
         let c = std::fs::read(param_file_path).expect("Couldn't read parameter file");
         let mut provided_params = serde_json::from_slice::<HashMap<String, Parameter>>(&c).expect("Couldn't decode parameter file");
         for algo in algorithms.iter_mut(){
@@ -79,7 +80,7 @@ fn main() -> Result<(), Error> {
 
     let file = fs::read(path)?;
     let demo: Demo = Demo::new(&file);
-    let analyser = analysis_template::analyse(&demo, algorithms)?;
+    let analyser = analyse(&demo, algorithms)?;
 
     if start.elapsed().as_secs() >= 10 {
         analyser.print_metadata();

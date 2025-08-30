@@ -8,7 +8,11 @@ This repo produces an executable that accepts a demo file as input, and returns 
 
 ### Getting started
 
-After setting up your Rust developer environment, check the program executes correctly with the command `cargo run --release -- -i "path/to/demo.dem"`. The --release flag dramatically speeds up the program (~2x), so its use is recommended even during development.
+If you have a demo file you want to scan with the included algorithms, you have two options:
+
+#### CLI (default)
+
+After setting up your Rust developer environment, check the program executes correctly with the command `cargo run -- -i "path/to/demo.dem"`. You can also add the `--release` flag after `cargo run` to dramatically speed up the program (~2x), however this enables some safeguards that prevents panics from certain invalid states (e.g. u32 underflows), so it's only recommended for production use.
 
 Example output: 
 ```Map: pl_borneo
@@ -78,48 +82,16 @@ The empty array at the bottom means there were no detections. If there were dete
       "pa_delta": 180.0,
       "va_delta": -134.0762424468994
     }
-  },
-  {
-    "tick": 8469,
-    "algorithm": "viewangles_180degrees",
-    "player": 76561199775364340,
-    "data": {
-      "pa_delta": 180.0,
-      "va_delta": 33.079185485839844
-    }
-  },
-  {
-    "tick": 8474,
-    "algorithm": "viewangles_180degrees",
-    "player": 76561199774314308,
-    "data": {
-      "pa_delta": 180.0,
-      "va_delta": 33.079193115234375
-    }
-  },
-  {
-    "tick": 8474,
-    "algorithm": "viewangles_180degrees",
-    "player": 76561199776113179,
-    "data": {
-      "pa_delta": -180.0,
-      "va_delta": 20.762466430664062
-    }
-  },
-  {
-    "tick": 8474,
-    "algorithm": "viewangles_180degrees",
-    "player": 76561199775364340,
-    "data": {
-      "pa_delta": -180.0,
-      "va_delta": 49.61875915527344
-    }
   }
 ]
 ```
 These are real detections against real cheaters, but the Steam IDs have been substituted for now-deleted bot accounts.
 
 In production, the `-q` flag is used to silence all debug info, leaving only the detection output in stdout. 
+
+#### GUI
+
+The command `cargo run --bin gui` opens a GUI which lists all available algorithms and configurable parameters.
 
 ### Output
 
@@ -134,12 +106,13 @@ The output is a json array containing serialized Detection objects. The `Detecti
 
 The program accepts the following arguments:
 
-- `-i <path>`: Specify the path to the demo file to analyze. This argument is required.
-- `-q`: Silence all debug info, leaving only the detection output in stdout. Required for production use.
-- `-p`: Same as `-q`, but prettifies the output. Convenient for manual inspection of the output.
-- `-c`: Print the number of detections instead of details for every detection. Overridden by `-q`.
 - `-a <algorithm> [-a <algorithm>]...`: Specify the algorithms to run. If not specified, the default algorithms are run.
+- `-c`: Print the number of detections instead of details for every detection. Overridden by `-q`.
 - `-h`: Print help information and exit.
+- `-i <path>`: Specify the path to the demo file to analyze. **This argument is required.**
+- `-p`: Provide a .json file with custom parameters. 
+- `-q`: Silence all debug info, leaving only the detection output in stdout. Required for production use.
+- `-Q`: Same as `-q`, but prettifies the output. Convenient for manual inspection of the output.
 
 ### Writing your own algorithm
 

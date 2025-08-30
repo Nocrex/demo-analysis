@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use analysis_template::{base::cheat_analyser_base::CheatAnalyser, Detection, Parameter, Parameters};
+use analysis_template::{base::cheat_analyser_base::CheatAnalyser, lib::{algorithm::{analyse, get_algorithms, Detection}, parameters::{Parameter, Parameters}}};
 use eframe::egui;
 use itertools::Itertools;
 use tf_demo_parser::Demo;
@@ -35,7 +35,7 @@ struct Gui {
 impl Gui {
     pub fn new() -> Self {
         let mut params: HashMap<String, Parameters> = HashMap::new();
-        for mut a in analysis_template::algorithms().drain(..) {
+        for mut a in get_algorithms().drain(..) {
             if a.params().is_some() {
                 params.insert(a.algorithm_name().to_string(), a.params().cloned().unwrap());
             }
@@ -57,7 +57,7 @@ impl Gui {
         }
         Self {
             algos: HashMap::from_iter(
-                analysis_template::algorithms()
+                get_algorithms()
                     .iter()
                     .map(|a| (a.algorithm_name().to_string(), a.default())),
             ),
@@ -72,7 +72,7 @@ impl Gui {
         }
         self.selected_detection = None;
         self.selected_player = None;
-        let mut algorithms = analysis_template::algorithms();
+        let mut algorithms = get_algorithms();
         algorithms.retain(|a| self.algos[a.algorithm_name()]);
 
         for a in algorithms.iter_mut() {
@@ -83,7 +83,7 @@ impl Gui {
 
         let file = std::fs::read(self.file.as_ref().unwrap()).unwrap();
         let demo: Demo = Demo::new(&file);
-        let analyser = analysis_template::analyse(&demo, algorithms).unwrap();
+        let analyser = analyse(&demo, algorithms).unwrap();
         self.analyser = Some(analyser);
         self.detections.clear();
         for det in self.analyser.as_ref().unwrap().detections.clone() {
