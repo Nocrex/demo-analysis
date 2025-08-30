@@ -25,7 +25,6 @@ pub mod util {
 pub mod lib {
     pub mod algorithm;
     pub mod parameters;
-    pub mod misc;
 }
 
 pub static SILENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
