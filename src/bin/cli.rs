@@ -1,5 +1,5 @@
 use std::{collections::HashMap, env, fs::{self}};
-use analysis_template::{dev_print, lib::{algorithm::{get_algorithms, analyse, CheatAlgorithm}, parameters::Parameter}, SILENT};
+use analysis_template::{dev_print, lib::{algorithm::{analyse, get_algorithms, CheatAlgorithm}, parameters::Parameters}, SILENT};
 
 use anyhow::Error;
 
@@ -55,14 +55,20 @@ fn main() -> Result<(), Error> {
     
     if let Some(param_file_path) = matches.opt_str("p") {
         let c = std::fs::read(param_file_path).expect("Couldn't read parameter file");
-        let mut provided_params = serde_json::from_slice::<HashMap<String, Parameter>>(&c).expect("Couldn't decode parameter file");
+        let mut provided_params = serde_json::from_slice::<HashMap<String, Parameters>>(&c).expect("Couldn't decode parameter file");
         for algo in algorithms.iter_mut(){
-            if algo.params().is_none(){
+            let algorithm_name: String = algo.algorithm_name().to_owned();
+
+            let algo_params_default = algo.params();
+            if algo_params_default.is_none() {
                 continue;
             }
-            if let Some(provided) = provided_params.get_mut(algo.algorithm_name()){
-                for mut algo_param in algo.params().unwrap(){
-                    algo_param.1 = provided;
+            let algo_params_default = algo_params_default.unwrap();
+            
+            if let Some(algo_params_provided) = provided_params.get_mut(&algorithm_name){
+                for mut algo_param in algo_params_default {
+                    let provided_param = algo_params_provided.get_mut(&algorithm_name);
+                    algo_param.1 = provided_param.unwrap_or(algo_param.1);
                 }
             }
         } 

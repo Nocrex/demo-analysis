@@ -28,6 +28,6 @@ Cargo.lock
 /target
 
 
-# For testing/example output
+# For algorithm output
 
-/test
+/output

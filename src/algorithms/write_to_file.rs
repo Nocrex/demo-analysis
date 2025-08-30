@@ -74,7 +74,7 @@ impl CheatAlgorithm<'_> for WriteToFile {
     }
 
     fn init(&mut self) -> Result<(), Error> {
-        self.init_file("./test/write_to_file.json");
+        self.init_file("./output/write_to_file.json");
 
         writeln!(self.file.as_mut().unwrap(), "[").unwrap();
 

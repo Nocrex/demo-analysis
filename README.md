@@ -91,7 +91,9 @@ In production, the `-q` flag is used to silence all debug info, leaving only the
 
 #### GUI
 
-The command `cargo run --bin gui` opens a GUI which lists all available algorithms and configurable parameters.
+The command `cargo run --bin gui` opens a GUI which lets you choose which algorithms you want to use, configure their parameters, and easily access the Steam profiles of detected players.
+
+Note that there's no progress bar at the moment, so if you want to monitor the application as it runs, you need to use the terminal to monitor stdout.
 
 ### Output
 
@@ -100,7 +102,7 @@ The output is a json array containing serialized Detection objects. The `Detecti
 - `tick: u64`: The tick number at which the detection occurred.
 - `algorithm: String`: The name of the algorithm which produced the detection.
 - `player: u64`: The Steam ID of the player who triggered the detection.
-- `data: Value`: A JSON value containing any additional data that the algorithm wishes to store about the detection. This is used to store additional context relevant to the detection.
+- `data: Value`: A JSON value containing any relevant data for the detection, such as what viewangles triggered the detection.
 
 ### Arguments
 
@@ -122,6 +124,7 @@ To write your own algorithm, you must implement the `CheatAlgorithm` trait. To d
 
 - `default(&self) -> bool` (REQUIRED): Should this algorithm run by default if -a isn't specified?
 - `algorithm_name(&self) -> &str` (REQUIRED): Return your algorithm's name here. Best practice is to match the filename.
+- `params(&mut self) -> Option<&mut Parameters>`: Return any parameters your algorithm takes here (See `src/algorithms/write_to_file.rs` for example usage).
 - `handled_messages(&self) -> Vec<MessageType>`: Return any message types that your algorithm needs to parse here. You can access the message objects by implementing `on_message`.
 - `init(&mut self) -> Result<(), Error>`: Called before any other events. Use this instead of your object's constructor when performing any non-ephemeral actions e.g. modifying files.
 - `on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error>`: Called for each tick. A tick is triggered by the receipt of a NetTick message. The game state for the tick is passed in as a CheatAnalyserState.

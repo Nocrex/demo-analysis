@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 
@@ -8,6 +9,7 @@ use tf_demo_parser::{MessageType, ParserState};
 
 use crate::base::cheat_analyser_base::CheatAnalyserState;
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
+use crate::lib::parameters::{get_parameter_value, Parameter, Parameters};
 
 // header is not needed for this algorithm, but is included to serve as an example of how to handle the lifetimes.
 #[allow(dead_code)]
@@ -15,11 +17,10 @@ pub struct AllMessages {
     msg_history: Vec<String>,
     file: Option<File>,
     first_write: bool,
+    params: Parameters,
 }
 
 impl AllMessages {
-    const MAX_MSGS_IN_MEMORY: usize = 2048;
-
     fn write_messages_to_file(&mut self) {
         let out = self.msg_history.join("\n"); 
         write!(self.file.as_mut().unwrap(), "{}\n", out).unwrap();
@@ -43,6 +44,9 @@ impl AllMessages {
             msg_history: Vec::new(),
             file: None,
             first_write: true,
+            params: HashMap::from([
+                ("write_batch_size".to_string(), Parameter::Int(2048))
+            ])
         }
     }
 }
@@ -57,7 +61,7 @@ impl CheatAlgorithm<'_> for AllMessages {
     }
 
     fn init(&mut self) -> Result<(), Error> {
-        self.init_file("./test/all_messages.txt");
+        self.init_file("./output/all_messages.txt");
         Ok(())
     }
     
@@ -67,8 +71,10 @@ impl CheatAlgorithm<'_> for AllMessages {
             serde_json::to_string_pretty(&serde_json::to_value(message).unwrap()).unwrap()
         );
         self.msg_history.push(message);
+
+        let write_batch_size: i32 = get_parameter_value(&self.params, "write_batch_size");
     
-        if self.msg_history.len() > AllMessages::MAX_MSGS_IN_MEMORY {
+        if self.msg_history.len() > write_batch_size as usize {
             self.write_messages_to_file();
     
             self.msg_history.clear();

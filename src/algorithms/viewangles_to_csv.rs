@@ -90,7 +90,7 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
     }
 
     fn init(&mut self) -> Result<(), Error> {
-        self.init_file("./test/viewangles_to_csv.csv");
+        self.init_file("./output/viewangles_to_csv.csv");
         writeln!(self.file.as_mut().unwrap(), "tick,name,steam_id,origin_x,origin_y,origin_z,viewangle,pitchangle,va_delta,pa_delta").unwrap();
         Ok(())
     }

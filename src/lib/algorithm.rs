@@ -73,6 +73,10 @@ pub trait CheatAlgorithm<'a> {
         panic!("algorithm_name() not implemented for {}", std::any::type_name::<Self>());
     }
 
+    fn params(&mut self) -> Option<&mut Parameters>{
+        None
+    }
+
     fn does_handle(&self, message_type: MessageType) -> bool {
         match self.handled_messages() {
             Ok(types) => types.contains(&message_type),
@@ -109,10 +113,6 @@ pub trait CheatAlgorithm<'a> {
     // Use for cleaning up or for aggregate analysis
     fn finish(&mut self) -> Result<Vec<Detection>, Error> {
         Ok(vec![])
-    }
-    
-    fn params(&mut self) -> Option<&mut Parameters>{
-        None
     }
 }
 
