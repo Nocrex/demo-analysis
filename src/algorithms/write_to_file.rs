@@ -6,9 +6,8 @@ use anyhow::Error;
 use tf_demo_parser::ParserState;
 
 use crate::base::cheat_analyser_base::CheatAnalyserState;
-use crate::util::helpers::get_parameter_value;
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
-use crate::lib::parameters::{Parameter, Parameters};
+use crate::lib::parameters::{Parameter, Parameters, get_parameter_value};
 
 #[allow(dead_code)]
 pub struct WriteToFile {

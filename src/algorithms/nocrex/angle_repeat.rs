@@ -3,11 +3,11 @@
 use std::collections::HashMap;
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::{helpers::{angle_delta, get_parameter_value}, nocrex::jankguard::JankGuard}
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::{helpers::{angle_delta}, nocrex::jankguard::JankGuard}
 };
 
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
-use crate::lib::parameters::{Parameter, Parameters};
+use crate::lib::parameters::{Parameter, Parameters, get_parameter_value};
 
 use anyhow::Error;
 use serde_json::json;

@@ -3,7 +3,6 @@
 
 use tf_demo_parser::demo::message::packetentities::EntityId;
 
-use crate::lib::parameters::{Parameter, ParameterError, Parameters};
 
 // Compute the difference in viewangles. We have to account for the fact viewangles are in a circle.
 // E.g. If viewangle goes from 350 to 10 degrees, we want to return 20 degrees.
@@ -52,17 +51,4 @@ fn angles_to_unit_vec(yaw: f32, pitch: f32) -> (f32, f32, f32) {
         pitch.sin(),
         pitch.cos() * yaw.cos(),
     )
-}
-
-pub fn get_parameter_value<T>(params: &Parameters, param_name: &str) -> T
-where
-    T: for<'a> TryFrom<&'a Parameter, Error = ParameterError>,
-{
-    match params.get(param_name) {
-        Some(param) => match T::try_from(param) {
-            Ok(value) => value,
-            Err(_) => panic!("Parameter {} has wrong type", param_name),
-        },
-        None => panic!("Parameter {} not found", param_name),
-    }
 }

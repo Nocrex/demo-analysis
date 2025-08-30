@@ -6,9 +6,9 @@ use anyhow::Error;
 use tf_demo_parser::ParserState;
 use crate::base::cheat_analyser_base::{CheatAnalyserState, PlayerState};
 use crate::dev_print;
-use crate::util::helpers::{get_parameter_value, viewangle_delta};
+use crate::util::helpers::{viewangle_delta};
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
-use crate::lib::parameters::{Parameter, Parameters};
+use crate::lib::parameters::{get_parameter_value, Parameter, Parameters};
 
 pub struct ViewAnglesToCSV {
     file: Option<File>,

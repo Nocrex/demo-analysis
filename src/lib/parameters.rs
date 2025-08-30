@@ -122,3 +122,16 @@ impl<'a> Deserialize<'a> for Parameter {
 }
 
 pub type Parameters = HashMap<String, Parameter>;
+
+pub fn get_parameter_value<T>(params: &Parameters, param_name: &str) -> T
+where
+    T: for<'a> TryFrom<&'a Parameter, Error = ParameterError>,
+{
+    match params.get(param_name) {
+        Some(param) => match T::try_from(param) {
+            Ok(value) => value,
+            Err(_) => panic!("Parameter {} has wrong type", param_name),
+        },
+        None => panic!("Parameter {} not found", param_name),
+    }
+}
