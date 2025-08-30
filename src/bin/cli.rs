@@ -38,7 +38,7 @@ fn main() -> Result<(), Error> {
         return Ok(());
     }
 
-    let path = matches.opt_str("i").expect("No input file path provided");
+    let demo_path = matches.opt_str("i").expect("No input file path provided");
     let silent = matches.opt_present("q") || matches.opt_present("Q");
     let pretty = matches.opt_present("Q");
     SILENT.store(silent, std::sync::atomic::Ordering::Relaxed);
@@ -54,23 +54,30 @@ fn main() -> Result<(), Error> {
     }
     
     if let Some(param_file_path) = matches.opt_str("p") {
-        let c = std::fs::read(param_file_path).expect("Couldn't read parameter file");
-        let mut provided_params = serde_json::from_slice::<HashMap<String, Parameters>>(&c).expect("Couldn't decode parameter file");
+        dev_print!("Loading parameters from {}:", param_file_path);
+        let c = fs::read(param_file_path).expect("Couldn't read parameter file");
+        let config = serde_json::from_slice::<HashMap<String, Parameters>>(&c).expect("Couldn't decode parameter file");
         for algo in algorithms.iter_mut(){
             let algorithm_name: String = algo.algorithm_name().to_owned();
 
-            let algo_params_default = algo.params();
-            if algo_params_default.is_none() {
+            let algo_params = algo.params();
+            if algo_params.is_none() {
                 continue;
             }
-            let algo_params_default = algo_params_default.unwrap();
-            
-            if let Some(algo_params_provided) = provided_params.get_mut(&algorithm_name){
-                for mut algo_param in algo_params_default {
-                    let provided_param = algo_params_provided.get_mut(&algorithm_name);
-                    algo_param.1 = provided_param.unwrap_or(algo_param.1);
+            let algo_params = algo_params.unwrap();
+            dev_print!("  {}", algorithm_name);
+            algo_params.iter_mut().for_each(|(k, v)| {
+                if let Some(config_params) = config.get(&algorithm_name) {
+                    if let Some(param_value) = config_params.get(k) {
+                        *v = param_value.clone();
+                        dev_print!("    {} = {:?} (changed)", k, v);
+                    } else {
+                        dev_print!("    {} = {:?} (default)", k, v);
+                    }
+                } else {
+                    dev_print!("    {} = {:?} (default)", k, v);
                 }
-            }
+            });
         } 
     }
 
@@ -84,7 +91,7 @@ fn main() -> Result<(), Error> {
         panic!("No algorithms specified");
     }
 
-    let file = fs::read(path)?;
+    let file = fs::read(demo_path)?;
     let demo: Demo = Demo::new(&file);
     let analyser = analyse(&demo, algorithms)?;
 

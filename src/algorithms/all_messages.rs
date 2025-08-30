@@ -8,6 +8,7 @@ use tf_demo_parser::demo::message::Message;
 use tf_demo_parser::{MessageType, ParserState};
 
 use crate::base::cheat_analyser_base::CheatAnalyserState;
+use crate::dev_print;
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
 use crate::lib::parameters::{get_parameter_value, Parameter, Parameters};
 
@@ -61,6 +62,7 @@ impl CheatAlgorithm<'_> for AllMessages {
     }
 
     fn init(&mut self) -> Result<(), Error> {
+        dev_print!("Initializing AllMessages algorithm with write_batch_size = {}", get_parameter_value::<i32>(&self.params, "write_batch_size"));
         self.init_file("./output/all_messages.txt");
         Ok(())
     }
@@ -71,7 +73,6 @@ impl CheatAlgorithm<'_> for AllMessages {
             serde_json::to_string_pretty(&serde_json::to_value(message).unwrap()).unwrap()
         );
         self.msg_history.push(message);
-
         let write_batch_size: i32 = get_parameter_value(&self.params, "write_batch_size");
     
         if self.msg_history.len() > write_batch_size as usize {
@@ -97,6 +98,10 @@ impl CheatAlgorithm<'_> for AllMessages {
         let _ = self.file.as_mut().unwrap().flush();
 
         Ok(vec![])
+    }
+
+    fn params(&mut self) -> Option<&mut Parameters> {
+        Some(&mut self.params)
     }
 }
 

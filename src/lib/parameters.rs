@@ -92,7 +92,7 @@ impl<'a> Deserialize<'a> for Parameter {
             type Value = Parameter;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a float, int, or bool")
+                formatter.write_str("an f32, i32, or bool")
             }
 
             fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
@@ -103,6 +103,13 @@ impl<'a> Deserialize<'a> for Parameter {
             }
 
             fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Parameter::Int(value as i32))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
@@ -121,7 +128,11 @@ impl<'a> Deserialize<'a> for Parameter {
     }
 }
 
+// Maps parameter names to their values.
 pub type Parameters = HashMap<String, Parameter>;
+
+// Maps algorithm names to their parameters.
+pub type Config = HashMap<String, Parameters>;
 
 pub fn get_parameter_value<T>(params: &Parameters, param_name: &str) -> T
 where
