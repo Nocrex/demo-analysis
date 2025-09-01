@@ -12,7 +12,7 @@ If you have a demo file you want to scan with the included algorithms, you have 
 
 #### CLI (default)
 
-After setting up your Rust developer environment, check the program executes correctly with the command `cargo run -- -i "path/to/demo.dem"`. You can also add the `--release` flag after `cargo run` to dramatically speed up the program (~2x), however this enables some safeguards that prevents panics from certain invalid states (e.g. u32 underflows), so it's only recommended for production use.
+After setting up your Rust developer environment, check the program executes correctly with the command `cargo run -- -i "path/to/demo.dem"`. You can also add the `--release` flag after `cargo run` to dramatically speed up the program (2-10x), however this enables some safeguards that prevents panics from certain invalid states (e.g. u32 underflows), so be careful!
 
 Example output: 
 ```Map: pl_borneo
@@ -91,7 +91,7 @@ In production, the `-q` flag is used to silence all debug info, leaving only the
 
 #### GUI
 
-The command `cargo run --bin gui` opens a GUI which lets you choose which algorithms you want to use, configure their parameters, and easily access the Steam profiles of detected players.
+The command `cargo build --release --bin gui --features gui` builds a GUI-based program at `target/release` which lets you choose which algorithms you want to use, configure their parameters, and easily access the Steam profiles of detected players.
 
 Note that there's no progress bar at the moment, so if you want to monitor the application as it runs, you need to use the terminal to monitor stdout.
 

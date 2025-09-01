@@ -12,8 +12,6 @@ lto = true
 [dependencies]
 anyhow = "1.0.98"
 bitbuffer = "0.11.1"
-eframe = { version = "0.31.1" }
-egui = { version = "0.31.1" }
 getopts = "0.2.23"
 itertools = "0.14.0"
 lazy_static = "1.5.0"
@@ -23,3 +21,14 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 steamid-ng = "1.0.0"
 tf-demo-parser = "0.6.4"
+web-time = "1.1.0"
+
+eframe = { version = "0.31.1", optional = true }
+egui = { version = "0.31.1", optional = true }
+
+[features]
+gui = [ "eframe", "egui" ]
+
+[[bin]]
+name = "gui"
+required-features = [ "gui" ]

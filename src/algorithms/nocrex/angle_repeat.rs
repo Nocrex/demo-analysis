@@ -20,6 +20,7 @@ pub struct AngleRepeat {
 
     jg: JankGuard,
     params: Parameters,
+    detections: Vec<Detection>,
 }
 
 impl AngleRepeat {
@@ -53,8 +54,6 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
         let ticknum = u32::from(state.tick);
         let players = &state.players;
 
-        let mut detections = Vec::new();
-
         self.ticks.insert(0, HashMap::new());
         self.ticks.truncate(3);
         
@@ -77,9 +76,17 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
             let prev_player = self.ticks.get(1).and_then(|m| m.get(&steam_id)).cloned();
             let second_prev_player = self.ticks.get(2).and_then(|m| m.get(&steam_id)).cloned();
 
-            if self.jg.teleported(&steam_id, ticknum) < 60
-                || self.jg.spawned(&steam_id, ticknum) < 60
-            {
+            let ticks_since_event = self
+                .jg
+                .teleported(&steam_id, ticknum)
+                .min(self.jg.spawned(&steam_id, ticknum));
+
+            if ticks_since_event < 60 {
+                // Ignore detections +-60 ticks from a teleport or spawn event
+                if ticks_since_event == 0 {
+                    self.detections
+                        .retain(|det| det.player != steam_id || (ticknum - det.tick) > 60);
+                }
                 continue;
             }
 
@@ -106,7 +113,7 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                     && ratio > min_angle_diff_ratio
                     && self.jg.fired(&steam_id, ticknum) < 3
                 {
-                    detections.push(Detection {
+                    self.detections.push(Detection {
                         tick: ticknum,
                         algorithm: self.algorithm_name().to_string(),
                         player: steam_id,
@@ -122,7 +129,7 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                 }
             }
         }
-        Ok(detections)
+        Ok(vec![])
     }
 
     fn handled_messages(&self) -> Result<Vec<tf_demo_parser::MessageType>, bool> {
@@ -138,6 +145,10 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
     ) -> Result<Vec<Detection>, Error> {
         self.jg.on_message(message, state, parser_state, tick);
         Ok(vec![])
+    }
+
+    fn finish(&mut self) -> Result<Vec<Detection>, Error> {
+        Ok(self.detections.clone())
     }
 
     fn params(&mut self) -> Option<&mut Parameters> {

@@ -3,7 +3,7 @@
 use std::{collections::HashMap, ops::Range};
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, dev_print, util::{helpers::angle_delta, nocrex::jankguard::JankGuard}
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, lib::parameters::get_parameter_value, util::{helpers::angle_delta, nocrex::jankguard::JankGuard}
 };
 use anyhow::Error;
 use serde_json::json;
@@ -18,6 +18,7 @@ pub struct AimSnap {
     ticks: Vec<HashMap<u64, Player>>,
     jg: JankGuard,
     params: Parameters,
+    detections: Vec<Detection>,
 }
 
 impl AimSnap {
@@ -51,26 +52,11 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
         let ticknum = u32::from(state.tick);
         let players = &state.players;
 
-        let noise_range: Range<f32> = match (
-            self.params.get("noise_min"),
-            self.params.get("noise_max"),
-        ) {
-            (Some(Parameter::Float(min)), Some(Parameter::Float(max))) => *min..*max,
-            _ => {
-                dev_print!("Warning: Invalid noise bounds for {}. Using default of 0.028..0.99", self.algorithm_name());
-                0.028..0.99
-            },
-        };
+        let noise_min: f32 = get_parameter_value(&self.params, "noise_min");
+        let noise_max: f32 = get_parameter_value(&self.params, "noise_max");
+        let snap_threshold: f32 = get_parameter_value(&self.params, "snap_threshold");
 
-        let snap_threshold = match self.params.get("snap_threshold") {
-            Some(Parameter::Float(thresh)) => *thresh,
-            _ => {
-                dev_print!("Warning: Invalid snap_threshold for {}. Using default of 10.0", self.algorithm_name());
-                10.0
-            },
-        };
-
-        let mut detections = Vec::new();
+        let noise_range: Range<f32> = noise_min..noise_max;
 
         self.ticks.insert(0, HashMap::new());
         self.ticks.truncate(5);
@@ -87,9 +73,17 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
 
             let steam_id: u64 = u64::from(SteamID::from_steam3(&info.steam_id).unwrap());
 
-            if self.jg.teleported(&steam_id, ticknum) < 60
-                || self.jg.spawned(&steam_id, ticknum) < 60
-            {
+            let ticks_since_event = self
+                .jg
+                .teleported(&steam_id, ticknum)
+                .min(self.jg.spawned(&steam_id, ticknum));
+
+            if ticks_since_event < 60 {
+                // Ignore detections +-60 ticks from a teleport or spawn event
+                if ticks_since_event == 0 {
+                    self.detections
+                        .retain(|det| det.player != steam_id || (ticknum - det.tick) > 60);
+                }
                 continue;
             }
 
@@ -125,7 +119,7 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                     == 1
                 && self.jg.fired(&steam_id, ticknum) < 5
             {
-                detections.push(Detection {
+                self.detections.push(Detection {
                     tick: ticknum - 2,
                     algorithm: self.algorithm_name().to_string(),
                     player: steam_id,
@@ -135,11 +129,15 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                 });
             }
         }
-        Ok(detections)
+        Ok(vec![])
     }
 
     fn handled_messages(&self) -> Result<Vec<tf_demo_parser::MessageType>, bool> {
         self.jg.handled_messages()
+    }
+
+    fn finish(&mut self) -> Result<Vec<Detection>, Error> {
+        Ok(self.detections.clone())
     }
 
     fn on_message(
