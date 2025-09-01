@@ -8,7 +8,11 @@ This repo produces an executable that accepts a demo file as input, and returns 
 
 ### Getting started
 
-After setting up your Rust developer environment, check the program executes correctly with the command `cargo run --release -- -i "path/to/demo.dem"`. The --release flag dramatically speeds up the program (~2x), so its use is recommended even during development.
+If you have a demo file you want to scan with the included algorithms, you have two options:
+
+#### CLI (default)
+
+After setting up your Rust developer environment, check the program executes correctly with the command `cargo run -- -i "path/to/demo.dem"`. You can also add the `--release` flag after `cargo run` to dramatically speed up the program (2-10x), however this enables some safeguards that prevents panics from certain invalid states (e.g. u32 underflows), so be careful!
 
 Example output: 
 ```Map: pl_borneo
@@ -78,48 +82,18 @@ The empty array at the bottom means there were no detections. If there were dete
       "pa_delta": 180.0,
       "va_delta": -134.0762424468994
     }
-  },
-  {
-    "tick": 8469,
-    "algorithm": "viewangles_180degrees",
-    "player": 76561199775364340,
-    "data": {
-      "pa_delta": 180.0,
-      "va_delta": 33.079185485839844
-    }
-  },
-  {
-    "tick": 8474,
-    "algorithm": "viewangles_180degrees",
-    "player": 76561199774314308,
-    "data": {
-      "pa_delta": 180.0,
-      "va_delta": 33.079193115234375
-    }
-  },
-  {
-    "tick": 8474,
-    "algorithm": "viewangles_180degrees",
-    "player": 76561199776113179,
-    "data": {
-      "pa_delta": -180.0,
-      "va_delta": 20.762466430664062
-    }
-  },
-  {
-    "tick": 8474,
-    "algorithm": "viewangles_180degrees",
-    "player": 76561199775364340,
-    "data": {
-      "pa_delta": -180.0,
-      "va_delta": 49.61875915527344
-    }
   }
 ]
 ```
 These are real detections against real cheaters, but the Steam IDs have been substituted for now-deleted bot accounts.
 
 In production, the `-q` flag is used to silence all debug info, leaving only the detection output in stdout. 
+
+#### GUI
+
+The command `cargo build --release --bin gui --features gui` builds a GUI-based program at `target/release` which lets you choose which algorithms you want to use, configure their parameters, and easily access the Steam profiles of detected players.
+
+Note that there's no progress bar at the moment, so if you want to monitor the application as it runs, you need to use the terminal to monitor stdout.
 
 ### Output
 
@@ -128,18 +102,19 @@ The output is a json array containing serialized Detection objects. The `Detecti
 - `tick: u64`: The tick number at which the detection occurred.
 - `algorithm: String`: The name of the algorithm which produced the detection.
 - `player: u64`: The Steam ID of the player who triggered the detection.
-- `data: Value`: A JSON value containing any additional data that the algorithm wishes to store about the detection. This is used to store additional context relevant to the detection.
+- `data: Value`: A JSON value containing any relevant data for the detection, such as what viewangles triggered the detection.
 
 ### Arguments
 
 The program accepts the following arguments:
 
-- `-i <path>`: Specify the path to the demo file to analyze. This argument is required.
-- `-q`: Silence all debug info, leaving only the detection output in stdout. Required for production use.
-- `-p`: Same as `-q`, but prettifies the output. Convenient for manual inspection of the output.
-- `-c`: Print the number of detections instead of details for every detection. Overridden by `-q`.
 - `-a <algorithm> [-a <algorithm>]...`: Specify the algorithms to run. If not specified, the default algorithms are run.
+- `-c`: Print the number of detections instead of details for every detection. Overridden by `-q`.
 - `-h`: Print help information and exit.
+- `-i <path>`: Specify the path to the demo file to analyze. **This argument is required.**
+- `-p`: Provide a .json file with custom parameters. 
+- `-q`: Silence all debug info, leaving only the detection output in stdout. Required for production use.
+- `-Q`: Same as `-q`, but prettifies the output. Convenient for manual inspection of the output.
 
 ### Writing your own algorithm
 
@@ -149,6 +124,7 @@ To write your own algorithm, you must implement the `CheatAlgorithm` trait. To d
 
 - `default(&self) -> bool` (REQUIRED): Should this algorithm run by default if -a isn't specified?
 - `algorithm_name(&self) -> &str` (REQUIRED): Return your algorithm's name here. Best practice is to match the filename.
+- `params(&mut self) -> Option<&mut Parameters>`: Return any parameters your algorithm takes here (See `src/algorithms/write_to_file.rs` for example usage).
 - `handled_messages(&self) -> Vec<MessageType>`: Return any message types that your algorithm needs to parse here. You can access the message objects by implementing `on_message`.
 - `init(&mut self) -> Result<(), Error>`: Called before any other events. Use this instead of your object's constructor when performing any non-ephemeral actions e.g. modifying files.
 - `on_tick(&mut self, tick: Value) -> Result<Vec<Detection>, Error>`: Called for each tick. A tick is triggered by the receipt of a NetTick message. The game state for the tick is passed in as a CheatAnalyserState.

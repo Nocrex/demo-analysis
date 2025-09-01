@@ -6,6 +6,11 @@
 
 use anyhow::Error;
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::convert::TryFrom;
+use std::str::FromStr;
+use std::sync::Mutex;
 use steamid_ng::SteamID;
 use tf_demo_parser::demo::data::DemoTick;
 use tf_demo_parser::demo::gameevent_gen::ObjectDestroyedEvent;
@@ -24,14 +29,10 @@ use tf_demo_parser::demo::parser::MessageHandler;
 use tf_demo_parser::demo::sendprop::{SendProp, SendPropIdentifier, SendPropValue};
 use tf_demo_parser::demo::vector::{Vector, VectorXY};
 use tf_demo_parser::{MessageType, ParserState, ReadResult, Stream};
-use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
-use std::convert::TryFrom;
-use std::str::FromStr;
-use std::sync::Mutex;
-use std::time::Instant;
+use web_time::Instant;
 
-use crate::{dev_print, CheatAlgorithm, Detection};
+use crate::lib::algorithm::{CheatAlgorithm, Detection};
+use crate::dev_print;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub enum PlayerState {
@@ -425,11 +426,15 @@ impl MessageHandler for CheatAnalyser<'_> {
                     self.state.remove_building((*index as u32).into());
                 }
                 GameEvent::PlayerConnectClient(event) => {
-                    self.state.set_entid_to_userid(EntityId::from(event.index as u32), UserId::from(event.user_id));
+                    self.state.set_entid_to_userid(
+                        EntityId::from(event.index as u32),
+                        UserId::from(event.user_id),
+                    );
                     if event.network_id != "BOT".into() {
                         let steamid = SteamID::from_steam3(event.network_id.to_string().as_str());
                         let steamid64 = u64::from(steamid.unwrap_or(0.into()));
-                        self.state.set_userid_to_id64(event.user_id.into(), steamid64);
+                        self.state
+                            .set_userid_to_id64(event.user_id.into(), steamid64);
                     }
                 }
                 _ => {}
@@ -516,9 +521,7 @@ impl<'a> CheatAnalyser<'a> {
 
         if !message_types.is_empty() {
             message_types.extend(specified_message_types);
-            message_types.sort_by(|a, b|{
-                format!("{:?}", a).cmp(&format!("{:?}", b))
-            });
+            message_types.sort_by(|a, b| format!("{:?}", a).cmp(&format!("{:?}", b)));
             message_types.dedup();
         }
 
@@ -537,7 +540,7 @@ impl<'a> CheatAnalyser<'a> {
     pub fn init(&mut self) -> Result<(), Error> {
         for algorithm in &mut self.algorithms {
             match algorithm.init() {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => continue,
             }
         }
@@ -566,7 +569,14 @@ impl<'a> CheatAnalyser<'a> {
         let minutes = ((header.duration % 3600.0) / 60.0).floor();
         let seconds = (header.duration % 60.0).floor();
         let milliseconds = ((header.duration % 1.0) * 100.0).floor();
-        dev_print!("Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)", hours, minutes, seconds, milliseconds, ticks);
+        dev_print!(
+            "Duration: {:02}:{:02}:{:02}.{:03} ({} ticks)",
+            hours,
+            minutes,
+            seconds,
+            milliseconds,
+            ticks
+        );
         dev_print!("User: {}", header.nick);
         dev_print!("Server: {}", header.server);
     }
@@ -592,16 +602,25 @@ impl<'a> CheatAnalyser<'a> {
         for detection in &self.detections {
             let algorithm = detection.algorithm.clone();
             let steamid = detection.player;
-            *algorithm_counts.entry(algorithm).or_insert(HashMap::new()).entry(steamid).or_insert(0) += 1;
+            *algorithm_counts
+                .entry(algorithm)
+                .or_insert(HashMap::new())
+                .entry(steamid)
+                .or_insert(0) += 1;
         }
-    
+
         dev_print!("Total detections: {}", self.detections.len());
         if self.detections.is_empty() {
             return;
         }
         dev_print!("Detections by Algorithm:");
         for (algorithm, steamid_counts) in algorithm_counts {
-            dev_print!("  {}: {} players, {} detections", algorithm, steamid_counts.len(), steamid_counts.values().sum::<usize>());
+            dev_print!(
+                "  {}: {} players, {} detections",
+                algorithm,
+                steamid_counts.len(),
+                steamid_counts.values().sum::<usize>()
+            );
             let mut steamid_counts_vec: Vec<_> = steamid_counts.into_iter().collect();
             steamid_counts_vec.sort_by(|a, b| b.1.cmp(&a.1));
             for (steamid, count) in steamid_counts_vec {
@@ -627,13 +646,19 @@ impl<'a> CheatAnalyser<'a> {
         }
 
         let tps = if self.progress.len() >= 2 {
-            let tps = (self.progress.last().unwrap() - self.progress.first().unwrap()) as f64 / (self.progress.len() as f64 - 1.0);
+            let tps = (self.progress.last().unwrap() - self.progress.first().unwrap()) as f64
+                / (self.progress.len() as f64 - 1.0);
             tps * PROGRESS_UPDATE_INTERVAL_MS as f64 / 1000.0
         } else {
             tick.into()
         };
 
-        dev_print!("Processing tick {} ({} remaining, {:.0} tps)", tick, self.get_tick_count_u32() - tick, tps);
+        dev_print!(
+            "Processing tick {} ({} remaining, {:.0} tps)",
+            tick,
+            self.get_tick_count_u32() - tick,
+            tps
+        );
     }
 
     pub fn get_tick_count_u32(&self) -> u32 {
@@ -680,8 +705,8 @@ impl<'a> CheatAnalyser<'a> {
                         match &player.info {
                             Some(info) => {
                                 mappings.push((entity_id, info.user_id));
-                            },
-                            None => {},
+                            }
+                            None => {}
                         };
                         match table_name.as_str() {
                             "m_iTeam" => {
@@ -1036,10 +1061,13 @@ impl<'a> CheatAnalyser<'a> {
             tf_demo_parser::demo::data::UserInfo::parse_from_string_table(index as u16, text, data)?
         {
             let ent_id = user_info.entity_id;
-            self.state.set_entid_to_userid(ent_id, user_info.player_info.user_id.clone());
+            self.state
+                .set_entid_to_userid(ent_id, user_info.player_info.user_id.clone());
             match SteamID::from_steam3(&user_info.player_info.steam_id) {
-                Ok(steam_id) => self.state.set_userid_to_id64(user_info.player_info.user_id.clone(), steam_id.into()),
-                Err(_) => {},
+                Ok(steam_id) => self
+                    .state
+                    .set_userid_to_id64(user_info.player_info.user_id.clone(), steam_id.into()),
+                Err(_) => {}
             }
             self.state.get_or_create_player(ent_id).info = Some(user_info.into());
         }
