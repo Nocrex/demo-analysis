@@ -8,25 +8,33 @@ use steamid_ng::SteamID;
 const TELEPORT_DIST: f32 = 256.0;
 
 #[derive(Default)]
-pub struct JankGuard {
-    last_spawns: HashMap<u64, u32>,
-    last_teleport: HashMap<u64, u32>,
-    last_fire: HashMap<u64, u32>,
+struct PlayerData {
+    pub last_spawn: u32,
+    pub last_teleport: u32,
+    pub last_fire: u32,
 
-    last_tick: HashMap<u64, Player>,
+    pub prev_state: Option<Player>,
+}
+
+#[derive(Default)]
+pub struct JankGuard {
+    player_data: HashMap<u64, PlayerData>,
 }
 
 impl JankGuard {
     pub fn teleported(&self, player: &u64, tick: u32) -> u32 {
-        tick - self.last_teleport.get(player).cloned().unwrap_or_default()
+        tick - self
+            .player_data
+            .get(player)
+            .map_or(0, |pd| pd.last_teleport)
     }
 
     pub fn spawned(&self, player: &u64, tick: u32) -> u32 {
-        tick - self.last_spawns.get(player).cloned().unwrap_or_default()
+        tick - self.player_data.get(player).map_or(0, |pd| pd.last_spawn)
     }
 
     pub fn fired(&self, player: &u64, tick: u32) -> u32 {
-        tick - self.last_fire.get(player).cloned().unwrap_or_default()
+        tick - self.player_data.get(player).map_or(0, |pd| pd.last_fire)
     }
 
     pub fn handled_messages(&self) -> Result<Vec<tf_demo_parser::MessageType>, bool> {
@@ -49,17 +57,17 @@ impl JankGuard {
             ) => match event {
                 tf_demo_parser::demo::gamevent::GameEvent::PlayerSpawn(spawn) => {
                     if let Some(id) = state.get_id64_from_userid(spawn.user_id.into()) {
-                        self.last_spawns.insert(id, tick.into());
+                        self.player_data.entry(id).or_default().last_spawn = tick.into();
                     }
                 }
                 tf_demo_parser::demo::gamevent::GameEvent::PostInventoryApplication(app) => {
                     if let Some(id) = state.get_id64_from_userid(app.user_id.into()) {
-                        self.last_spawns.insert(id, tick.into());
+                        self.player_data.entry(id).or_default().last_spawn = tick.into();
                     }
                 }
                 tf_demo_parser::demo::gamevent::GameEvent::PlayerTeleported(tele) => {
                     if let Some(id) = state.get_id64_from_userid(tele.user_id.into()) {
-                        self.last_teleport.insert(id, tick.into());
+                        self.player_data.entry(id).or_default().last_teleport = tick.into();
                     }
                 }
                 _ => (),
@@ -90,7 +98,10 @@ impl JankGuard {
                                                 .and_then(|userid| state.userid_to_id64.get(userid))
                                             {
                                                 Some(id64) => {
-                                                    self.last_fire.insert(*id64, tick.into());
+                                                    self.player_data
+                                                        .entry(*id64)
+                                                        .or_default()
+                                                        .last_fire = tick.into();
                                                 }
                                                 None => continue,
                                             };
@@ -112,14 +123,18 @@ impl JankGuard {
                                         tf_demo_parser::demo::sendprop::SendPropValue::Integer(x) => x.try_into().unwrap_or_default(),
                                         _ => {continue}
                                     };
-                                            let entity_id = crate::util::helpers::handle_to_entid(handle_id);
+                                            let entity_id =
+                                                crate::util::helpers::handle_to_entid(handle_id);
                                             match state
                                                 .entid_to_userid
                                                 .get(&entity_id)
                                                 .and_then(|userid| state.userid_to_id64.get(userid))
                                             {
                                                 Some(id64) => {
-                                                    self.last_fire.insert(*id64, tick.into());
+                                                    self.player_data
+                                                        .entry(*id64)
+                                                        .or_default()
+                                                        .last_fire = tick.into();
                                                 }
                                                 None => continue,
                                             };
@@ -138,6 +153,7 @@ impl JankGuard {
     }
 
     pub fn on_tick(&mut self, state: &CheatAnalyserState) {
+        let mut states = HashMap::new();
         for player in state.players.iter().filter(|p| {
             p.in_pvs
                 && p.state == PlayerState::Alive
@@ -150,7 +166,8 @@ impl JankGuard {
 
             let steam_id: u64 = u64::from(SteamID::from_steam3(&info.steam_id).unwrap());
 
-            let prev_player = self.last_tick.get(&steam_id);
+            let player_data = self.player_data.entry(steam_id).or_default();
+            let prev_player = player_data.prev_state.as_ref();
 
             if prev_player.as_ref().is_some_and(|p| {
                 // Ignore players that just moved more than 256 HUs in a single tick (teleport)
@@ -158,8 +175,12 @@ impl JankGuard {
                 let sq_len = diff.x.powi(2) + diff.y.powi(2) + diff.z.powi(2);
                 sq_len > TELEPORT_DIST.powi(2)
             }) {
-                continue;
+                player_data.last_teleport = state.tick.into();
             }
+            states.insert(steam_id, player.clone());
+        }
+        for (steam_id, player_data) in self.player_data.iter_mut() {
+            player_data.prev_state = states.remove(&steam_id);
         }
     }
 }
