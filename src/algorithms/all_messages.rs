@@ -66,12 +66,23 @@ impl CheatAlgorithm<'_> for AllMessages {
         self.init_file("./output/all_messages.txt");
         Ok(())
     }
-    
-    fn on_message(&mut self, message: &Message, _: &CheatAnalyserState, _: &ParserState, _: DemoTick) -> Result<Vec<Detection>, Error> {
-        let message = format!("{:?} {}",
-            message.get_message_type(),
-            serde_json::to_string_pretty(&serde_json::to_value(message).unwrap()).unwrap()
-        );
+
+    fn on_message(&mut self, message: &Message, _: &CheatAnalyserState, pstate: &ParserState, tick: DemoTick,) -> Result<Vec<Detection>, Error> {
+        let mut message = format!("({tick}) {:#?}", message);
+
+        while let Some(start) = message.find("ClassId(") {
+            let end = message[start + 9..].find(")").unwrap() + start + 9;
+            let id = message[start + 9..end].trim();
+            let id = id.strip_suffix(",").unwrap_or(id);
+            let id: u16 = id.parse().unwrap();
+            let class = pstate
+                .server_classes
+                .iter()
+                .find(|sc| u16::from(sc.id) == id)
+                .unwrap();
+            message.replace_range(start..=end, class.name.as_str());
+        }
+
         self.msg_history.push(message);
         let write_batch_size: i32 = get_parameter_value(&self.params, "write_batch_size");
     
