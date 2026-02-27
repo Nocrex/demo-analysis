@@ -45,7 +45,7 @@ fn main() -> Result<(), Error> {
 
     // To add your algorithm, call new() on it and store inside a Box.
     // You will need to import it at the top of the file.
-    let mut algorithms: Vec<Box<dyn CheatAlgorithm>> = get_algorithms();
+    let mut algorithms: Vec<Box<dyn CheatAlgorithm + Send>> = get_algorithms();
     let specified_algorithms = matches.opt_strs("a");
     if specified_algorithms.is_empty() && !matches.opt_present("a") {
         algorithms.retain(|a| a.default());

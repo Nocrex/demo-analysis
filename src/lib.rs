@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicU32;
 pub mod base {
     pub mod cheat_analyser_base;
     pub mod demo_handler_base;
@@ -28,6 +29,9 @@ pub mod lib {
 }
 
 pub static SILENT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub static PROGRESS_CURRENT: AtomicU32 = AtomicU32::new(0);
+pub static PROGRESS_TOTAL: AtomicU32 = AtomicU32::new(0);
 
 #[macro_export]
 macro_rules! dev_print {
