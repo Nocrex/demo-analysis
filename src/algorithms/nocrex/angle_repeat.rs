@@ -1,9 +1,9 @@
-// Written by Nocrex, Patched for Command Batching By Ciam
+// Written by Nocrex, Patched for Command Batching by Ciam
 
 use std::collections::HashMap;
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::nocrex::jankguard::JankGuard
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::{helpers::viewangle_delta, nocrex::jankguard::JankGuard}
 };
 
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
@@ -82,6 +82,7 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                 .min(self.jg.spawned(&steam_id, ticknum));
 
             if ticks_since_event < 60 {
+                // Ignore detections +-60 ticks from a teleport or spawn event
                 if ticks_since_event == 0 {
                     self.detections
                         .retain(|det| det.player != steam_id || (ticknum - det.tick) > 60);
@@ -94,23 +95,16 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                 .get_mut(0)
                 .unwrap()
                 .1
-                .insert(steam_id.clone(), player.clone()); 
+                .insert(steam_id.clone(), player.clone()); // Store angle for this tick for next ticks
 
             if let (Some((second_t, second_data)), Some((first_t, first_data))) = (prev_data, second_prev_data) {
                 let first_angle = (first_data.view_angle, first_data.pitch_angle);
                 let second_angle = (second_data.view_angle, second_data.pitch_angle);
 
                 let calc_real_delta = |t_old: u32, a_old: (f32, f32), t_new: u32, a_new: (f32, f32)| -> f32 {
-                    let tick_delta = (t_new as f32 - t_old as f32).max(1.0);
+                    let tick_delta = t_new.saturating_sub(t_old);
                     
-                    let mut yaw_diff = a_new.0 - a_old.0;
-                    while yaw_diff > 180.0 { yaw_diff -= 360.0; }
-                    while yaw_diff < -180.0 { yaw_diff += 360.0; }
-                    
-                    let pitch_diff = a_new.1 - a_old.1;
-
-                    let va_real = yaw_diff / tick_delta;
-                    let pa_real = pitch_diff / tick_delta;
+                    let (va_real, pa_real) = viewangle_delta(a_new.0, a_new.1, a_old.0, a_old.1, tick_delta);
                     
                     (va_real * va_real + pa_real * pa_real).sqrt()
                 };
@@ -119,6 +113,7 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                 let first_third_delta = calc_real_delta(first_t, first_angle, ticknum, third_angle);
 
                 if first_second_delta < min_first_second_angle_delta {
+                    // Ignore players with only a tiny adjustment in second angle
                     continue;
                 }
 
@@ -139,10 +134,7 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                             "1_3_delta": first_third_delta,
                             "1_2_delta": first_second_delta,
                             "ratio": ratio,
-                            "note": "Tick Delta division applied."
                         }),
-                        hits: 0,
-                        crits: 0,
                     });
                 }
             }

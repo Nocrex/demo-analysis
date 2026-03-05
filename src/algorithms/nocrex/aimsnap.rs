@@ -79,6 +79,7 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                 .min(self.jg.spawned(&steam_id, ticknum));
 
             if ticks_since_event < 60 {
+                // Ignore detections +-60 ticks from a teleport or spawn event
                 if ticks_since_event == 0 {
                     self.detections
                         .retain(|det| det.player != steam_id || (ticknum - det.tick) > 60);
@@ -89,34 +90,33 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
             self.ticks
                 .get_mut(0)
                 .unwrap()
-                .1 
-                .insert(steam_id.clone(), player.clone()); 
+                .1
+                .insert(steam_id.clone(), player.clone()); // Store angle for this tick for next ticks
 
-            let mut angle_history: Vec<(u32, f32, f32)> = Vec::new();
-            for (t, m) in self.ticks.iter().rev() {
-                if let Some(p) = m.get(&steam_id) {
-                    angle_history.push((*t, p.view_angle, p.pitch_angle));
-                }
-            }
+            let angle_history: Vec<_> = self
+                .ticks
+                .iter()
+                .filter_map(|(t, m)| m.get(&steam_id).map(|p| (*t, p.view_angle, p.pitch_angle)))
+                .rev()
+                .collect();
 
             if angle_history.len() < self.ticks.len() {
-                continue; 
+                continue;
             }
 
             let mut deltas = Vec::new();
-            
             for window in angle_history.windows(2) {
                 let (t1, yaw1, pitch1) = window[0];
                 let (t2, yaw2, pitch2) = window[1];
 
-                let tick_delta = (t2 as f32 - t1 as f32).max(1.0); 
+                let tick_delta = (t2 as f32 - t1 as f32).max(1.0);
 
                 let mut yaw_diff = yaw2 - yaw1;
                 while yaw_diff > 180.0 { yaw_diff -= 360.0; }
                 while yaw_diff < -180.0 { yaw_diff += 360.0; }
 
                 let pitch_diff = pitch2 - pitch1;
-
+                
                 let va_delta_real = yaw_diff / tick_delta;
                 let pa_delta_real = pitch_diff / tick_delta;
 
@@ -139,11 +139,8 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                     algorithm: self.algorithm_name().to_string(),
                     player: steam_id,
                     data: json!({
-                        "deltas": deltas,
-                        "note": "Tick Delta division applied."
+                        "deltas": deltas
                     }),
-                    hits: 0,
-                    crits: 0,
                 });
             }
         }
