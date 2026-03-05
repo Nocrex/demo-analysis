@@ -3,7 +3,7 @@
 use std::{collections::HashMap, ops::Range};
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, lib::parameters::get_parameter_value, util::nocrex::jankguard::JankGuard
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, lib::parameters::get_parameter_value, util::{helpers::viewangle_delta, nocrex::jankguard::JankGuard}
 };
 use anyhow::Error;
 use serde_json::json;
@@ -109,16 +109,9 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                 let (t1, yaw1, pitch1) = window[0];
                 let (t2, yaw2, pitch2) = window[1];
 
-                let tick_delta = (t2 as f32 - t1 as f32).max(1.0);
+                let tick_delta = t2.saturating_sub(t1);
 
-                let mut yaw_diff = yaw2 - yaw1;
-                while yaw_diff > 180.0 { yaw_diff -= 360.0; }
-                while yaw_diff < -180.0 { yaw_diff += 360.0; }
-
-                let pitch_diff = pitch2 - pitch1;
-                
-                let va_delta_real = yaw_diff / tick_delta;
-                let pa_delta_real = pitch_diff / tick_delta;
+                let (va_delta_real, pa_delta_real) = viewangle_delta(yaw2, pitch2, yaw1, pitch1, tick_delta);
 
                 let mag_delta = (va_delta_real * va_delta_real + pa_delta_real * pa_delta_real).sqrt();
                 deltas.push(mag_delta);
