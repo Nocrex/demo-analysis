@@ -68,14 +68,14 @@ impl<'a> CheatAlgorithm<'a> for OOBPitch {
 
             let steam_id = &info.steam_id;
 
-            if !(min_pitch..=max_pitch).contains(&player.pitch_angle) {
+            if !(min_pitch..=max_pitch).contains(&player.viewangles.pitch) {
                 detections.insert(steam_id.clone());
                 if !self.last_detections.contains(steam_id){
                     submitted_detections.push(Detection {
                         tick: ticknum,
                         algorithm: self.algorithm_name().to_string(),
                         player: u64::from(SteamID::from_steam3(&steam_id).unwrap()),
-                        data: json!({ "pitch": player.pitch_angle }),
+                        data: json!({ "pitch": player.viewangles.pitch }),
                     });
                 }
             }

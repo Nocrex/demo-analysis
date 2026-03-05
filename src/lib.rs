@@ -16,12 +16,8 @@ pub mod algorithms {
     }
 }
 
-pub mod util {
-    pub mod helpers;
-    pub mod nocrex {
-        pub mod jankguard;
-    }
-}
+pub mod util;
+
 
 pub mod lib {
     pub mod algorithm;

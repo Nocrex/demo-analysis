@@ -2,7 +2,7 @@ use anyhow::Error;
 use serde_json::json;
 use steamid_ng::SteamID;
 use tf_demo_parser::ParserState;
-use crate::{base::cheat_analyser_base::{CheatAnalyserState, PlayerState}, util::helpers::viewangle_delta};
+use crate::{base::cheat_analyser_base::{CheatAnalyserState, PlayerState}, util::{Viewangles}};
 
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
 
@@ -73,29 +73,27 @@ impl<'a> CheatAlgorithm<'a> for ViewAngles180Degrees {
                 }
             };
 
-            let (va_delta, pa_delta) = self.previous.as_ref()
-                .map_or((f32::NAN, f32::NAN), |prev_state| {
+            let angle_delta = self.previous.as_ref()
+                .map_or(Viewangles::NAN, |prev_state| {
                     match prev_state.players.iter().find(|p| {
                         p.in_pvs && p.state == PlayerState::Alive &&
                         p.info.as_ref().is_some_and(|i| i.steam_id == *steam_id)
                     }) {
                         Some(prev_player) => {
-                            let prev_viewangle = prev_player.view_angle;
-                            let prev_pitchangle = prev_player.pitch_angle;
-                            viewangle_delta(player.view_angle, player.pitch_angle, prev_viewangle, prev_pitchangle, tick_delta)
+                            player.viewangles.component_delta(&prev_player.viewangles, tick_delta)
                         },
-                        None => (f32::NAN, f32::NAN)
+                        None => Viewangles::NAN
                     }
                 });
             // Creating the detection object
             // Avoid creating multiple detection objects for the same player and tick.
             // Nothing will break if you do, but it will overrepresent the data point.
-            if va_delta.abs() >= 180.0 || pa_delta.abs() >= 180.0 {
+            if angle_delta.yaw.abs() >= 180.0 || angle_delta.pitch.abs() >= 180.0 {
                 detections.push(Detection { 
                     tick: ticknum,
                     algorithm: self.algorithm_name().to_string(),
                     player: u64::from(SteamID::from_steam3(&steam_id).unwrap()),
-                    data: json!({ "va_delta": va_delta, "pa_delta": pa_delta })
+                    data: json!({ "va_delta": angle_delta.yaw, "pa_delta": angle_delta.pitch })
                 });
             }
         }

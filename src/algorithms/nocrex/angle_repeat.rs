@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::{helpers::{angle_delta}, nocrex::jankguard::JankGuard}
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::{nocrex::jankguard::JankGuard}
 };
 
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
@@ -90,17 +90,17 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
                 continue;
             }
 
-            let third_angle = (player.view_angle, player.pitch_angle);
+            let third_angle = player.viewangles;
             self.ticks
                 .get_mut(0)
                 .unwrap()
                 .insert(steam_id.clone(), player.clone()); // Store angle for this tick for next ticks
 
             if let (Some(second_data), Some(first_data)) = (prev_player, second_prev_player) {
-                let first_angle = (first_data.view_angle, first_data.pitch_angle);
-                let second_angle = (second_data.view_angle, second_data.pitch_angle);
-                let first_second_delta = angle_delta(first_angle, second_angle);
-                let first_third_delta = angle_delta(first_angle, third_angle);
+                let first_angle = first_data.viewangles;
+                let second_angle = second_data.viewangles;
+                let first_second_delta = first_angle.angle(&second_angle);
+                let first_third_delta = first_angle.angle(&third_angle);
 
                 if first_second_delta < min_first_second_angle_delta {
                     // Ignore players with only a tiny adjustment in second angle

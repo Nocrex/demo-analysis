@@ -3,7 +3,7 @@
 use std::{collections::HashMap, ops::Range};
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, lib::parameters::get_parameter_value, util::{helpers::angle_delta, nocrex::jankguard::JankGuard}
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, lib::parameters::get_parameter_value, util::{Viewangles, nocrex::jankguard::JankGuard}
 };
 use anyhow::Error;
 use serde_json::json;
@@ -95,7 +95,7 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
             let mut angles: Vec<_> = self
                 .ticks
                 .iter()
-                .map(|m| m.get(&steam_id).map(|p| (p.view_angle, p.pitch_angle)))
+                .map(|m| m.get(&steam_id).map(|p| p.viewangles))
                 .rev()
                 .collect();
 
@@ -103,10 +103,10 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                 continue;
             }
 
-            let angles: Vec<(f32, f32)> = angles.drain(..).map(|o| o.unwrap()).collect();
+            let angles: Vec<Viewangles> = angles.drain(..).map(|o| o.unwrap()).collect();
             let mut deltas = Vec::new();
             for (a, b) in angles.iter().zip(angles.iter().skip(1)) {
-                deltas.push(angle_delta(*a, *b));
+                deltas.push(a.angle(b));
             }
 
             if noise_range.contains(deltas.first().unwrap())

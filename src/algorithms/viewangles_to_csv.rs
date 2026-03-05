@@ -6,9 +6,9 @@ use anyhow::Error;
 use tf_demo_parser::ParserState;
 use crate::base::cheat_analyser_base::{CheatAnalyserState, PlayerState};
 use crate::dev_print;
-use crate::util::helpers::{viewangle_delta};
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
 use crate::lib::parameters::{get_parameter_value, Parameter, Parameters};
+use crate::util::Viewangles;
 
 pub struct ViewAnglesToCSV {
     file: Option<File>,
@@ -24,15 +24,13 @@ struct Record {
     origin_x: f32,
     origin_y: f32,
     origin_z: f32,
-    viewangle: f32,
-    pitchangle: f32,
-    va_delta: f32,
-    pa_delta: f32,
+    viewangles: Viewangles,
+    va_delta: Viewangles,
 }
 
 impl Record {
     fn to_string(&self) -> String {
-        format!("{},{},{},{},{},{},{},{},{},{}", self.tick, self.name, self.steam_id, self.origin_x, self.origin_y, self.origin_z, self.viewangle, self.pitchangle, self.va_delta, self.pa_delta)
+        format!("{},{},{},{},{},{},{},{},{},{}", self.tick, self.name, self.steam_id, self.origin_x, self.origin_y, self.origin_z, self.viewangles.yaw, self.viewangles.pitch, self.va_delta.yaw, self.va_delta.pitch)
     }
 }
 
@@ -115,8 +113,7 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
             let origin_x = player.position.x;
             let origin_y = player.position.y;
             let origin_z = player.position.z;
-            let viewangle = player.view_angle;
-            let pitchangle = player.pitch_angle;
+            let viewangles = player.viewangles;
             let steam_id = &info.steam_id;
 
             let tick_delta = {
@@ -127,18 +124,16 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
                 }
             };
 
-            let (va_delta, pa_delta) = self.previous.as_ref()
-                .map_or((f32::NAN, f32::NAN), |prev_state| {
+            let va_delta = self.previous.as_ref()
+                .map_or(Viewangles::NAN, |prev_state| {
                     match prev_state.players.iter().find(|p| {
                         p.in_pvs && p.state == PlayerState::Alive &&
                         p.info.as_ref().is_some_and(|i| i.steam_id == *steam_id)
                     }) {
                         Some(prev_player) => {
-                            let prev_viewangle = prev_player.view_angle;
-                            let prev_pitchangle = prev_player.pitch_angle;
-                            viewangle_delta(player.view_angle, player.pitch_angle, prev_viewangle, prev_pitchangle, tick_delta)
+                            player.viewangles.component_delta(&prev_player.viewangles, tick_delta)
                         },
-                        None => (f32::NAN, f32::NAN)
+                        None => Viewangles::NAN
                     }
                 });
                 
@@ -150,10 +145,8 @@ impl<'a> CheatAlgorithm<'a> for ViewAnglesToCSV {
                     origin_x,
                     origin_y,
                     origin_z,
-                    viewangle,
-                    pitchangle,
+                    viewangles,
                     va_delta,
-                    pa_delta,
                 }
             );
         }

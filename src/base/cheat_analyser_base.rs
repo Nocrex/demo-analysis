@@ -33,6 +33,7 @@ use web_time::Instant;
 
 use crate::lib::algorithm::{CheatAlgorithm, Detection};
 use crate::dev_print;
+use crate::util::Viewangles;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub enum PlayerState {
@@ -62,8 +63,7 @@ pub struct Player {
     pub max_health: u16,
     pub class: Class,
     pub team: Team,
-    pub view_angle: f32,
-    pub pitch_angle: f32,
+    pub viewangles: Viewangles,
     pub state: PlayerState,
     pub info: Option<UserInfo>,
     pub charge: u8,
@@ -792,10 +792,10 @@ impl<'a> CheatAnalyser<'a> {
                     player.position.z = f32::try_from(&prop.value).unwrap_or_default()
                 }
                 LOCAL_EYE_ANGLES | NON_LOCAL_EYE_ANGLES => {
-                    player.view_angle = f32::try_from(&prop.value).unwrap_or_default()
+                    player.viewangles.yaw = f32::try_from(&prop.value).unwrap_or_default()
                 }
                 LOCAL_PITCH_ANGLES | NON_LOCAL_PITCH_ANGLES => {
-                    player.pitch_angle = f32::try_from(&prop.value).unwrap_or_default()
+                    player.viewangles.pitch = f32::try_from(&prop.value).unwrap_or_default()
                 }
                 SIMTIME_PROP => {
                     player.simtime = i64::try_from(&prop.value).unwrap_or_default() as u16
