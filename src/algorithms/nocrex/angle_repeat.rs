@@ -1,7 +1,8 @@
-// Written by Nocrex
+// Written by Nocrex, Patched for Command Batching by Ciam
 
 use std::collections::HashMap;
 
+use crate::util::Viewangles;
 use crate::{
     base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, util::{nocrex::jankguard::JankGuard}
 };
@@ -16,7 +17,7 @@ use tf_demo_parser::ParserState;
 
 #[derive(Default)]
 pub struct AngleRepeat {
-    ticks: Vec<HashMap<u64, Player>>,
+    ticks: Vec<(u32, HashMap<u64, Player>)>,
 
     jg: JankGuard,
     params: Parameters,
@@ -54,7 +55,7 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
         let ticknum = u32::from(state.tick);
         let players = &state.players;
 
-        self.ticks.insert(0, HashMap::new());
+        self.ticks.insert(0, (ticknum, HashMap::new()));
         self.ticks.truncate(3);
         
         let min_angle_diff_ratio: f32 = get_parameter_value(&self.params, "min_angle_diff_ratio");
@@ -73,8 +74,8 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
 
             let steam_id: u64 = u64::from(SteamID::from_steam3(&info.steam_id).unwrap());
 
-            let prev_player = self.ticks.get(1).and_then(|m| m.get(&steam_id)).cloned();
-            let second_prev_player = self.ticks.get(2).and_then(|m| m.get(&steam_id)).cloned();
+            let prev_data = self.ticks.get(1).and_then(|(t, m)| m.get(&steam_id).map(|p| (*t, p.clone())));
+            let second_prev_data = self.ticks.get(2).and_then(|(t, m)| m.get(&steam_id).map(|p| (*t, p.clone())));
 
             let ticks_since_event = self
                 .jg
@@ -94,13 +95,21 @@ impl<'a> CheatAlgorithm<'a> for AngleRepeat {
             self.ticks
                 .get_mut(0)
                 .unwrap()
+                .1
                 .insert(steam_id.clone(), player.clone()); // Store angle for this tick for next ticks
 
-            if let (Some(second_data), Some(first_data)) = (prev_player, second_prev_player) {
+            if let (Some((second_t, second_data)), Some((first_t, first_data))) = (prev_data, second_prev_data) {
                 let first_angle = first_data.viewangles;
                 let second_angle = second_data.viewangles;
-                let first_second_delta = first_angle.angle(&second_angle);
-                let first_third_delta = first_angle.angle(&third_angle);
+
+                let calc_real_delta = |t_old: u32, a_old: Viewangles, t_new: u32, a_new: Viewangles| -> f32 {
+                    let tick_delta = t_new.saturating_sub(t_old);
+                    
+                    a_new.component_delta(&a_old, tick_delta).mag()
+                };
+
+                let first_second_delta = calc_real_delta(first_t, first_angle, second_t, second_angle);
+                let first_third_delta = calc_real_delta(first_t, first_angle, ticknum, third_angle);
 
                 if first_second_delta < min_first_second_angle_delta {
                     // Ignore players with only a tiny adjustment in second angle
