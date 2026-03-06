@@ -3,7 +3,9 @@
 use std::{collections::HashMap, ops::Range};
 
 use crate::{
-    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState}, lib::parameters::get_parameter_value, util::nocrex::jankguard::JankGuard
+    base::cheat_analyser_base::{CheatAnalyserState, Player, PlayerState},
+    lib::parameters::get_parameter_value,
+    util::nocrex::jankguard::JankGuard,
 };
 use anyhow::Error;
 use serde_json::json;
@@ -104,24 +106,20 @@ impl<'a> CheatAlgorithm<'a> for AimSnap {
                 continue;
             }
 
-            let mut deltas = Vec::new();
-            for window in angle_history.windows(2) {
-                let (t1, angle1) = window[0];
-                let (t2, angle2) = window[1];
-
-                let tick_delta = t2.saturating_sub(t1);
-
-                deltas.push(angle2.component_delta(&angle1, tick_delta).mag());
-            }
+            let deltas: Vec<_> = angle_history
+                .windows(2)
+                .map(|w| match w {
+                    [(t1, angle1), (t2, angle2)] => {
+                        angle2.component_delta(angle1, t2.saturating_sub(*t1)).mag()
+                    }
+                    _ => panic!(),
+                })
+                .collect();
 
             if noise_range.contains(deltas.first().unwrap())
                 && noise_range.contains(deltas.last().unwrap())
                 && deltas.iter().filter(|&d| noise_range.contains(d)).count() == deltas.len() - 1
-                && deltas
-                    .iter()
-                    .filter(|&&d| d > snap_threshold)
-                    .count()
-                    == 1
+                && deltas.iter().filter(|&&d| d > snap_threshold).count() == 1
                 && self.jg.fired(&steam_id, ticknum) < 5
             {
                 self.detections.push(Detection {
