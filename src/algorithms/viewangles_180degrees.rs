@@ -88,7 +88,7 @@ impl<'a> CheatAlgorithm<'a> for ViewAngles180Degrees {
             // Creating the detection object
             // Avoid creating multiple detection objects for the same player and tick.
             // Nothing will break if you do, but it will overrepresent the data point.
-            if angle_delta.yaw.abs() >= 180.0 || angle_delta.pitch.abs() >= 180.0 {
+            if angle_delta.yaw.abs() >= 175.0 || angle_delta.pitch.abs() >= 175.0 {
                 detections.push(Detection { 
                     tick: ticknum,
                     algorithm: self.algorithm_name().to_string(),
