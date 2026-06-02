@@ -72,8 +72,8 @@ impl<'a> CheatAlgorithm<'a> for DoubleTap {
         if let Message::GameEvent(event_msg) = message {
             if let GameEvent::PlayerHurt(hurt) = &event_msg.event {
                 let assert_pvs: bool = get_parameter_value(&self.params, "assert_pvs");
-                let min_tick_scout: i32 = get_parameter_value(&self.params, "min_tick_scout primary weapon");
-                let min_tick_heavy: i32 = get_parameter_value(&self.params, "min_tick_heavy primary weapon");
+                let min_tick_scout: i32 = get_parameter_value(&self.params, "min_tick_scout");
+                let min_tick_heavy: i32 = get_parameter_value(&self.params, "min_tick_heavy");
 
                 // format;
                 // weapon id, min ticks
