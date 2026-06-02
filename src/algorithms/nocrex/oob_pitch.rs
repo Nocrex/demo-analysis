@@ -6,7 +6,7 @@ use crate::{
     base::cheat_analyser_base::{CheatAnalyserState, PlayerState}
 };
 
-use anyhow::{Error, Ok};
+use anyhow::Error;
 use serde_json::json;
 use steamid_ng::SteamID;
 use tf_demo_parser::{ParserState, demo::message::Message};
@@ -45,7 +45,7 @@ impl<'a> CheatAlgorithm<'a> for OOBPitch {
     }
 
     fn handled_messages(&self) -> Result<Vec<tf_demo_parser::MessageType>, bool> {
-        Err(true)
+        Ok(vec![tf_demo_parser::MessageType::ServerInfo, tf_demo_parser::MessageType::NetTick])
     }
 
     fn on_message(&mut self,
