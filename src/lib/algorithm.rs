@@ -1,5 +1,3 @@
-
-
 // Import algorithm struct here.
 pub use crate::algorithms::{
     all_messages::AllMessages,

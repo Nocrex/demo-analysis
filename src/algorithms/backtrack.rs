@@ -1,3 +1,4 @@
+// Written by Tellta
 use std::{collections::HashMap};
 
 use crate::{base::cheat_analyser_base::{CheatAnalyserState}};
