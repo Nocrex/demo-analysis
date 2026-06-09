@@ -4,13 +4,15 @@ pub use crate::algorithms::{
     viewangles_180degrees::ViewAngles180Degrees,
     viewangles_to_csv::ViewAnglesToCSV,
     write_to_file::WriteToFile,
-    angle_history::AngleHistory,
-    backtrack::BackTrack,
-    double_tap::DoubleTap,
     nocrex:: {
         aimsnap::AimSnap, 
         angle_repeat::AngleRepeat, 
         oob_pitch::OOBPitch,
+    },
+    teltta:: {
+        angle_history::AngleHistory,
+        backtrack::BackTrack,
+        double_tap::DoubleTap,
     }
 };
 
