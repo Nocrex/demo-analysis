@@ -1,4 +1,4 @@
-// Written by Tellta
+// Written by Teltta
 use std::collections::HashMap;
 
 use crate::base::cheat_analyser_base::CheatAnalyserState;
@@ -44,7 +44,7 @@ impl<'a> CheatAlgorithm<'a> for DoubleTap {
     }
 
     fn algorithm_name(&self) -> &str {
-        "doubletap"
+        "teltta/doubletap"
     }
 
     fn on_tick(
