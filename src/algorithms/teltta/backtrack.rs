@@ -1,4 +1,4 @@
-// Written by Tellta
+// Written by Teltta
 use std::{collections::HashMap};
 
 use crate::{base::cheat_analyser_base::{CheatAnalyserState}};
@@ -46,7 +46,7 @@ impl<'a> CheatAlgorithm<'a> for BackTrack {
     }
 
     fn algorithm_name(&self) -> &str {
-        "backtrack"
+        "teltta/backtrack"
     }
 
     fn on_tick(
